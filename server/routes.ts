@@ -267,8 +267,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         savingsId,
         amount: amount.toString(),
         method,
-        reason,
-        status: "PENDING"
+        reason
       });
       
       return res.status(201).json(withdrawal);
@@ -385,14 +384,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "Not authorized" });
       }
       
-      // Create loan application (pending status)
+      // Create loan application (pending status by default in schema)
       const loan = await storage.createLoan({
         userId,
         amount: amount.toString(),
         purpose,
         term,
-        description,
-        status: "PENDING"
+        description
       });
       
       return res.status(201).json(loan);

@@ -1,4 +1,5 @@
 import { pgTable, text, serial, integer, boolean, timestamp, doublePrecision, foreignKey, numeric, pgEnum } from "drizzle-orm/pg-core";
+import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -66,6 +67,53 @@ export const repayments = pgTable("repayments", {
   amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Define relations
+export const usersRelations = relations(users, ({ one, many }) => ({
+  savings: one(savings, {
+    fields: [users.id],
+    references: [savings.userId],
+  }),
+  loans: many(loans),
+}));
+
+export const savingsRelations = relations(savings, ({ one, many }) => ({
+  user: one(users, {
+    fields: [savings.userId],
+    references: [users.id],
+  }),
+  deposits: many(deposits),
+  withdrawals: many(withdrawals),
+}));
+
+export const depositsRelations = relations(deposits, ({ one }) => ({
+  savings: one(savings, {
+    fields: [deposits.savingsId],
+    references: [savings.id],
+  }),
+}));
+
+export const withdrawalsRelations = relations(withdrawals, ({ one }) => ({
+  savings: one(savings, {
+    fields: [withdrawals.savingsId],
+    references: [savings.id],
+  }),
+}));
+
+export const loansRelations = relations(loans, ({ one, many }) => ({
+  user: one(users, {
+    fields: [loans.userId],
+    references: [users.id],
+  }),
+  repayments: many(repayments),
+}));
+
+export const repaymentsRelations = relations(repayments, ({ one }) => ({
+  loan: one(loans, {
+    fields: [repayments.loanId],
+    references: [loans.id],
+  }),
+}));
 
 // Zod Schemas for validation
 

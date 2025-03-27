@@ -4,8 +4,11 @@ import {
   Deposit, InsertDeposit, 
   Withdrawal, InsertWithdrawal, 
   Loan, InsertLoan, 
-  Repayment, InsertRepayment
+  Repayment, InsertRepayment,
+  users, savings, deposits, withdrawals, loans, repayments
 } from "@shared/schema";
+import { db } from "./db";
+import { eq, desc, and } from "drizzle-orm";
 
 export interface IStorage {
   // User operations
@@ -46,354 +49,275 @@ export interface IStorage {
   createRepayment(repayment: InsertRepayment): Promise<Repayment>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private savings: Map<number, Savings>;
-  private deposits: Map<number, Deposit>;
-  private withdrawals: Map<number, Withdrawal>;
-  private loans: Map<number, Loan>;
-  private repayments: Map<number, Repayment>;
-  
-  private nextUserId: number;
-  private nextSavingsId: number;
-  private nextDepositId: number;
-  private nextWithdrawalId: number;
-  private nextLoanId: number;
-  private nextRepaymentId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.savings = new Map();
-    this.deposits = new Map();
-    this.withdrawals = new Map();
-    this.loans = new Map();
-    this.repayments = new Map();
-    
-    this.nextUserId = 1;
-    this.nextSavingsId = 1;
-    this.nextDepositId = 1;
-    this.nextWithdrawalId = 1;
-    this.nextLoanId = 1;
-    this.nextRepaymentId = 1;
-    
-    // Initialize with admin user
-    this.createUser({
-      name: "Admin User",
-      email: "admin@sacco.com",
-      password: "$2a$10$qCYw8OMeJDNXvJzUiQlS/ONhRBsXQ7neCPM.qhbP.CWP/VEG2z3.6", // password: admin123
-      role: "ADMIN"
-    });
-    
-    // Initialize with some member users
-    this.seedMemberData();
-  }
-  
-  // Seed some demo data
-  private async seedMemberData() {
-    // Create a member
-    const member = await this.createUser({
-      name: "John Doe",
-      email: "john@example.com",
-      password: "$2a$10$hvOIhHwZRVXDI2mbkmng2uO7CBUozC8yveMRGJLe/bgwlh3m12JZm", // password: password123
-      role: "MEMBER"
-    });
-    
-    // Create savings account
-    const savings = await this.createSavings({
-      userId: member.id,
-      balance: "2450.00"
-    });
-    
-    // Add some deposits
-    await this.createDeposit({
-      savingsId: savings.id,
-      amount: "500.00",
-      method: "bank",
-      notes: "Initial deposit"
-    });
-    
-    await this.createDeposit({
-      savingsId: savings.id,
-      amount: "1950.00",
-      method: "bank",
-      notes: "Salary deposit"
-    });
-    
-    // Add a withdrawal
-    await this.createWithdrawal({
-      savingsId: savings.id,
-      amount: "200.00",
-      method: "bank",
-      reason: "Emergency expenses",
-      status: "PENDING"
-    });
-    
-    // Add a loan
-    const loan = await this.createLoan({
-      userId: member.id,
-      amount: "1200.00",
-      purpose: "business",
-      term: 12,
-      description: "Need funds to expand my small business",
-      status: "APPROVED"
-    });
-    
-    // Add a loan repayment
-    await this.createRepayment({
-      loanId: loan.id,
-      amount: "150.00"
-    });
-    
-    // Add a pending loan
-    await this.createLoan({
-      userId: member.id,
-      amount: "500.00",
-      purpose: "education",
-      term: 6,
-      description: "For a short course in web development",
-      status: "PENDING"
-    });
-  }
-
+export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user || undefined;
   }
 
   async getUserByEmail(email: string): Promise<User | undefined> {
-    for (const user of this.users.values()) {
-      if (user.email.toLowerCase() === email.toLowerCase()) {
-        return user;
-      }
-    }
-    return undefined;
+    const [user] = await db.select().from(users).where(eq(users.email, email.toLowerCase()));
+    return user || undefined;
   }
 
   async createUser(userData: InsertUser): Promise<User> {
-    const id = this.nextUserId++;
-    const now = new Date();
-    
-    const user: User = {
-      id,
+    const [user] = await db.insert(users).values({
       ...userData,
-      createdAt: now,
-      updatedAt: now
-    };
-    
-    this.users.set(id, user);
+      email: userData.email.toLowerCase()
+    }).returning();
     return user;
   }
 
   async getAllUsers(): Promise<User[]> {
-    return Array.from(this.users.values());
+    return db.select().from(users).orderBy(users.name);
   }
 
   // Savings operations
   async getSavings(id: number): Promise<Savings | undefined> {
-    return this.savings.get(id);
+    const [savingsAccount] = await db.select().from(savings).where(eq(savings.id, id));
+    return savingsAccount || undefined;
   }
 
   async getSavingsByUserId(userId: number): Promise<Savings | undefined> {
-    for (const savings of this.savings.values()) {
-      if (savings.userId === userId) {
-        return savings;
-      }
-    }
-    return undefined;
+    const [savingsAccount] = await db.select().from(savings).where(eq(savings.userId, userId));
+    return savingsAccount || undefined;
   }
 
   async createSavings(savingsData: InsertSavings): Promise<Savings> {
-    const id = this.nextSavingsId++;
-    const now = new Date();
-    
-    const savings: Savings = {
-      id,
-      ...savingsData,
-      createdAt: now
-    };
-    
-    this.savings.set(id, savings);
-    return savings;
+    const [savingsAccount] = await db.insert(savings).values(savingsData).returning();
+    return savingsAccount;
   }
 
   async updateSavingsBalance(id: number, balance: string): Promise<Savings> {
-    const savings = await this.getSavings(id);
-    if (!savings) {
+    const [updatedSavings] = await db
+      .update(savings)
+      .set({ balance })
+      .where(eq(savings.id, id))
+      .returning();
+    
+    if (!updatedSavings) {
       throw new Error("Savings not found");
     }
     
-    const updatedSavings = {
-      ...savings,
-      balance
-    };
-    
-    this.savings.set(id, updatedSavings);
     return updatedSavings;
   }
 
   async getAllSavings(): Promise<Savings[]> {
-    return Array.from(this.savings.values());
+    return db.select().from(savings);
   }
 
   // Deposit operations
   async getDeposit(id: number): Promise<Deposit | undefined> {
-    return this.deposits.get(id);
+    const [deposit] = await db.select().from(deposits).where(eq(deposits.id, id));
+    return deposit || undefined;
   }
 
   async getDepositsBySavingsId(savingsId: number): Promise<Deposit[]> {
-    const result: Deposit[] = [];
-    for (const deposit of this.deposits.values()) {
-      if (deposit.savingsId === savingsId) {
-        result.push(deposit);
-      }
-    }
-    return result;
+    return db
+      .select()
+      .from(deposits)
+      .where(eq(deposits.savingsId, savingsId))
+      .orderBy(desc(deposits.createdAt));
   }
 
   async createDeposit(depositData: InsertDeposit): Promise<Deposit> {
-    const id = this.nextDepositId++;
-    const now = new Date();
-    
-    const deposit: Deposit = {
-      id,
-      ...depositData,
-      createdAt: now
-    };
-    
-    this.deposits.set(id, deposit);
+    const [deposit] = await db.insert(deposits).values(depositData).returning();
     return deposit;
   }
 
   // Withdrawal operations
   async getWithdrawal(id: number): Promise<Withdrawal | undefined> {
-    return this.withdrawals.get(id);
+    const [withdrawal] = await db.select().from(withdrawals).where(eq(withdrawals.id, id));
+    return withdrawal || undefined;
   }
 
   async getWithdrawalsBySavingsId(savingsId: number): Promise<Withdrawal[]> {
-    const result: Withdrawal[] = [];
-    for (const withdrawal of this.withdrawals.values()) {
-      if (withdrawal.savingsId === savingsId) {
-        result.push(withdrawal);
-      }
-    }
-    return result;
+    return db
+      .select()
+      .from(withdrawals)
+      .where(eq(withdrawals.savingsId, savingsId))
+      .orderBy(desc(withdrawals.createdAt));
   }
 
   async createWithdrawal(withdrawalData: InsertWithdrawal): Promise<Withdrawal> {
-    const id = this.nextWithdrawalId++;
-    const now = new Date();
-    
-    const withdrawal: Withdrawal = {
-      id,
-      ...withdrawalData,
-      createdAt: now
-    };
-    
-    this.withdrawals.set(id, withdrawal);
+    // Status is already handled in the schema with a default value
+    const [withdrawal] = await db
+      .insert(withdrawals)
+      .values(withdrawalData)
+      .returning();
     return withdrawal;
   }
 
   async updateWithdrawalStatus(id: number, status: "PENDING" | "APPROVED" | "REJECTED"): Promise<Withdrawal> {
-    const withdrawal = await this.getWithdrawal(id);
-    if (!withdrawal) {
+    const [updatedWithdrawal] = await db
+      .update(withdrawals)
+      .set({ status })
+      .where(eq(withdrawals.id, id))
+      .returning();
+    
+    if (!updatedWithdrawal) {
       throw new Error("Withdrawal not found");
     }
     
-    const updatedWithdrawal = {
-      ...withdrawal,
-      status
-    };
-    
-    this.withdrawals.set(id, updatedWithdrawal);
     return updatedWithdrawal;
   }
 
   // Loan operations
   async getLoan(id: number): Promise<Loan | undefined> {
-    return this.loans.get(id);
+    const [loan] = await db.select().from(loans).where(eq(loans.id, id));
+    return loan || undefined;
   }
 
   async getLoansByUserId(userId: number): Promise<Loan[]> {
-    const result: Loan[] = [];
-    for (const loan of this.loans.values()) {
-      if (loan.userId === userId) {
-        result.push(loan);
-      }
-    }
-    return result;
+    return db
+      .select()
+      .from(loans)
+      .where(eq(loans.userId, userId))
+      .orderBy(desc(loans.createdAt));
   }
 
   async createLoan(loanData: InsertLoan): Promise<Loan> {
-    const id = this.nextLoanId++;
-    const now = new Date();
-    
-    const loan: Loan = {
-      id,
-      ...loanData,
-      createdAt: now
-    };
-    
-    this.loans.set(id, loan);
+    // Status is already handled in the schema with a default value
+    const [loan] = await db
+      .insert(loans)
+      .values(loanData)
+      .returning();
     return loan;
   }
 
   async updateLoanStatus(id: number, status: "PENDING" | "APPROVED" | "REJECTED"): Promise<Loan> {
-    const loan = await this.getLoan(id);
-    if (!loan) {
+    const [updatedLoan] = await db
+      .update(loans)
+      .set({ status })
+      .where(eq(loans.id, id))
+      .returning();
+    
+    if (!updatedLoan) {
       throw new Error("Loan not found");
     }
     
-    const updatedLoan = {
-      ...loan,
-      status
-    };
-    
-    this.loans.set(id, updatedLoan);
     return updatedLoan;
   }
 
   async getPendingLoans(): Promise<Loan[]> {
-    const result: Loan[] = [];
-    for (const loan of this.loans.values()) {
-      if (loan.status === "PENDING") {
-        result.push(loan);
-      }
-    }
-    return result;
+    return db
+      .select()
+      .from(loans)
+      .where(eq(loans.status, "PENDING"))
+      .orderBy(desc(loans.createdAt));
   }
 
   async getAllLoans(): Promise<Loan[]> {
-    return Array.from(this.loans.values());
+    return db.select().from(loans).orderBy(desc(loans.createdAt));
   }
 
   // Repayment operations
   async getRepayment(id: number): Promise<Repayment | undefined> {
-    return this.repayments.get(id);
+    const [repayment] = await db.select().from(repayments).where(eq(repayments.id, id));
+    return repayment || undefined;
   }
 
   async getRepaymentsByLoanId(loanId: number): Promise<Repayment[]> {
-    const result: Repayment[] = [];
-    for (const repayment of this.repayments.values()) {
-      if (repayment.loanId === loanId) {
-        result.push(repayment);
-      }
-    }
-    return result;
+    return db
+      .select()
+      .from(repayments)
+      .where(eq(repayments.loanId, loanId))
+      .orderBy(desc(repayments.createdAt));
   }
 
   async createRepayment(repaymentData: InsertRepayment): Promise<Repayment> {
-    const id = this.nextRepaymentId++;
-    const now = new Date();
-    
-    const repayment: Repayment = {
-      id,
-      ...repaymentData,
-      createdAt: now
-    };
-    
-    this.repayments.set(id, repayment);
+    const [repayment] = await db.insert(repayments).values(repaymentData).returning();
     return repayment;
+  }
+
+  // Seed data for initial database setup
+  async seedInitialData(): Promise<void> {
+    // Check if admin user exists
+    const adminExists = await this.getUserByEmail("admin@sacco.com");
+    
+    if (!adminExists) {
+      // Create admin user
+      const admin = await this.createUser({
+        name: "Admin User",
+        email: "admin@sacco.com",
+        password: "$2a$10$qCYw8OMeJDNXvJzUiQlS/ONhRBsXQ7neCPM.qhbP.CWP/VEG2z3.6", // password: admin123
+        role: "ADMIN"
+      });
+      
+      console.log("Created admin user:", admin.name);
+      
+      // Create member user
+      const member = await this.createUser({
+        name: "John Doe",
+        email: "john@example.com",
+        password: "$2a$10$hvOIhHwZRVXDI2mbkmng2uO7CBUozC8yveMRGJLe/bgwlh3m12JZm", // password: password123
+        role: "MEMBER"
+      });
+      
+      console.log("Created member:", member.name);
+      
+      // Create savings account
+      const memberSavings = await this.createSavings({
+        userId: member.id,
+        balance: "2450.00"
+      });
+      
+      // Add deposits
+      await this.createDeposit({
+        savingsId: memberSavings.id,
+        amount: "500.00",
+        method: "bank",
+        notes: "Initial deposit"
+      });
+      
+      await this.createDeposit({
+        savingsId: memberSavings.id,
+        amount: "1950.00",
+        method: "bank",
+        notes: "Salary deposit"
+      });
+      
+      // Add withdrawal - we need to directly use db.insert for this since our method doesn't accept status
+      await db.insert(withdrawals).values({
+        savingsId: memberSavings.id,
+        amount: "200.00",
+        method: "bank",
+        reason: "Emergency expenses",
+        status: "PENDING"
+      }).returning();
+      
+      // Add an approved loan - we need to use db.insert directly
+      const [loan] = await db.insert(loans).values({
+        userId: member.id,
+        amount: "1200.00",
+        purpose: "business",
+        term: 12,
+        description: "Need funds to expand my small business",
+        status: "APPROVED"
+      }).returning();
+      
+      // Add repayment
+      await this.createRepayment({
+        loanId: loan.id,
+        amount: "150.00"
+      });
+      
+      // Add pending loan - using db.insert directly
+      await db.insert(loans).values({
+        userId: member.id,
+        amount: "500.00",
+        purpose: "education",
+        term: 6,
+        description: "For a short course in web development",
+        status: "PENDING"
+      }).returning();
+      
+      console.log("Initial data seeding complete");
+    } else {
+      console.log("Database already contains data, skipping seed");
+    }
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
