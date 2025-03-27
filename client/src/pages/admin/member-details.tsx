@@ -182,8 +182,8 @@ export default function MemberDetailsPage() {
     },
     {
       header: "Date",
-      accessorKey: (row: Transaction) => format(new Date(row.date), "yyyy-MM-dd"),
-      cell: (row: Transaction) => format(new Date(row.date), "MMM dd, yyyy • h:mm a"),
+      accessorKey: (row: Transaction) => row.date ? format(new Date(row.date), "yyyy-MM-dd") : "",
+      cell: (row: Transaction) => row.date ? format(new Date(row.date), "MMM dd, yyyy • h:mm a") : "Unknown",
       sortable: true,
     },
     {
@@ -325,7 +325,7 @@ export default function MemberDetailsPage() {
                 </div>
                 <div className="flex items-center text-gray-500 space-x-1 mt-1">
                   <CalendarIcon className="h-4 w-4" />
-                  <span>Member since {format(new Date(memberDetails.user.createdAt), "MMMM d, yyyy")}</span>
+                  <span>Member since {memberDetails.user.createdAt ? format(new Date(memberDetails.user.createdAt), "MMMM d, yyyy") : "Unknown"}</span>
                 </div>
                 
                 <div className="mt-4">
@@ -615,8 +615,8 @@ export default function MemberDetailsPage() {
                               },
                               {
                                 header: "Date",
-                                accessorKey: (row: Deposit) => format(new Date(row.createdAt), "yyyy-MM-dd"),
-                                cell: (row: Deposit) => format(new Date(row.createdAt), "MMM dd, yyyy"),
+                                accessorKey: (row: Deposit) => row.createdAt ? format(new Date(row.createdAt), "yyyy-MM-dd") : "",
+                                cell: (row: Deposit) => row.createdAt ? format(new Date(row.createdAt), "MMM dd, yyyy") : "Unknown",
                                 sortable: true,
                               },
                               {
@@ -654,8 +654,8 @@ export default function MemberDetailsPage() {
                               },
                               {
                                 header: "Date",
-                                accessorKey: (row: Withdrawal) => format(new Date(row.createdAt), "yyyy-MM-dd"),
-                                cell: (row: Withdrawal) => format(new Date(row.createdAt), "MMM dd, yyyy"),
+                                accessorKey: (row: Withdrawal) => row.createdAt ? format(new Date(row.createdAt), "yyyy-MM-dd") : "",
+                                cell: (row: Withdrawal) => row.createdAt ? format(new Date(row.createdAt), "MMM dd, yyyy") : "Unknown",
                                 sortable: true,
                               },
                               {
@@ -727,8 +727,8 @@ export default function MemberDetailsPage() {
                       },
                       {
                         header: "Application Date",
-                        accessorKey: (row: Loan) => format(new Date(row.createdAt), "yyyy-MM-dd"),
-                        cell: (row: Loan) => format(new Date(row.createdAt), "MMM dd, yyyy"),
+                        accessorKey: (row: Loan) => row.createdAt ? format(new Date(row.createdAt), "yyyy-MM-dd") : "",
+                        cell: (row: Loan) => row.createdAt ? format(new Date(row.createdAt), "MMM dd, yyyy") : "Unknown",
                         sortable: true,
                       },
                       {
@@ -794,7 +794,7 @@ export default function MemberDetailsPage() {
                                 {loan.repayments.map(repayment => (
                                   <tr key={repayment.id}>
                                     <td className="px-2 py-2 whitespace-nowrap">
-                                      {format(new Date(repayment.createdAt), "MMM dd, yyyy")}
+                                      {repayment.createdAt ? format(new Date(repayment.createdAt), "MMM dd, yyyy") : "Unknown"}
                                     </td>
                                     <td className="px-2 py-2 whitespace-nowrap text-green-600">
                                       ${parseFloat(repayment.amount).toFixed(2)}
