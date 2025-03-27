@@ -1,0 +1,168 @@
+SACCO Management System - Design Brief
+Overview
+The SACCO Management System will provide members with a seamless platform to manage their savings, apply for loans, and track their financial activities. Admins will have control over loan approvals, user management, and financial reporting. The system will feature secure authentication for users and administrators.
+
+🟦 Theme: Bluish
+🎨 Design: Sleek and modern, focusing on a clean, intuitive user experience.
+
+1. Features & Functionality
+Member Features
+View savings balance, loan status, and transaction history.
+
+Submit deposits and request withdrawals.
+
+Apply for loans and track application status.
+
+Admin Features
+View and manage members.
+
+Approve or reject loan applications.
+
+Manage savings and withdrawals.
+
+Generate financial reports.
+
+Authentication & Authorization
+Role-based access control (RBAC) with Member and Admin roles.
+
+Secure login and registration with email and password.
+
+2. Suggested Tech Stack
+Frontend: Next.js (React framework)
+
+Backend: Next.js API Routes with Prisma ORM
+
+Database: MySQL or PostgreSQL
+
+Authentication: NextAuth.js with JWT
+
+UI Components: Shadcn UI + Tailwind CSS
+
+State Management: React Context API or Zustand
+
+Validation: Zod for form validation
+
+Storage: Cloudinary (if profile pictures or documents are needed)
+
+3. Database Schema (Prisma Models)
+prisma
+Copy
+Edit
+model User {
+  id         String  @id @default(uuid())
+  name       String
+  email      String  @unique
+  password   String
+  role       Role    @default(MEMBER)
+  savings    Savings?
+  loans      Loan[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Savings {
+  id         String  @id @default(uuid())
+  user       User    @relation(fields: [userId], references: [id])
+  userId     String
+  balance    Float   @default(0.0)
+  deposits   Deposit[]
+  withdrawals Withdrawal[]
+  createdAt  DateTime @default(now())
+}
+
+model Deposit {
+  id         String  @id @default(uuid())
+  savings    Savings @relation(fields: [savingsId], references: [id])
+  savingsId  String
+  amount     Float
+  createdAt  DateTime @default(now())
+}
+
+model Withdrawal {
+  id         String  @id @default(uuid())
+  savings    Savings @relation(fields: [savingsId], references: [id])
+  savingsId  String
+  amount     Float
+  status     WithdrawalStatus @default(PENDING)
+  createdAt  DateTime @default(now())
+}
+
+model Loan {
+  id         String  @id @default(uuid())
+  user       User    @relation(fields: [userId], references: [id])
+  userId     String
+  amount     Float
+  status     LoanStatus @default(PENDING)
+  repayments Repayment[]
+  createdAt  DateTime @default(now())
+}
+
+model Repayment {
+  id         String  @id @default(uuid())
+  loan       Loan    @relation(fields: [loanId], references: [id])
+  loanId     String
+  amount     Float
+  createdAt  DateTime @default(now())
+}
+
+enum Role {
+  MEMBER
+  ADMIN
+}
+
+enum LoanStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum WithdrawalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+4. API Endpoints
+Auth
+POST /api/auth/register → Register user
+
+POST /api/auth/login → Login user
+
+POST /api/auth/logout → Logout user
+
+Users
+GET /api/users (Admin only) → List all users
+
+GET /api/users/:id → Get user details
+
+Savings
+POST /api/savings/deposit → Submit deposit
+
+POST /api/savings/withdrawal → Request withdrawal
+
+GET /api/savings/:id → Get savings balance and transactions
+
+Loans
+POST /api/loans/apply → Apply for a loan
+
+GET /api/loans/:id → Get loan details
+
+POST /api/loans/:id/approve (Admin only) → Approve loan
+
+POST /api/loans/:id/reject (Admin only) → Reject loan
+
+5. UI Components (Sleek, Modern & Bluish Theme)
+Member Dashboard
+📊 Card Components: Display savings balance, loan status, transaction history.
+📋 Table Component: Show transactions (deposits, withdrawals).
+🔵 Button Component: Deposit funds, apply for loans, withdraw savings.
+
+Admin Dashboard
+👥 Table Component: List all members, pending loans.
+🔄 Modal Component: Approve/reject loan requests.
+🔍 Search & Filter: Filter users and transactions.
+
+Forms
+🔐 Login/Register Form: Email & password fields with validation.
+💰 Deposit & Withdrawal Form: Input amount, submit request.
+📄 Loan Application Form: Loan amount, purpose, submit request.
+
