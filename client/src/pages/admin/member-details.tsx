@@ -64,12 +64,17 @@ export default function MemberDetailsPage() {
   const { data: memberDetails, isLoading } = useQuery<MemberDetails>({
     queryKey: ['/api/users', parseInt(id)],
     queryFn: async () => {
-      const user = await apiRequest("GET", `/api/users/${id}`);
+      // Fetch the user data and parse the JSON response
+      const userResponse = await apiRequest("GET", `/api/users/${id}`);
+      const user = await userResponse.json();
+      console.log("User data:", user);
       
       // Get savings with deposits and withdrawals
       let savings = null;
       try {
-        savings = await apiRequest("GET", `/api/savings/${id}`);
+        const savingsResponse = await apiRequest("GET", `/api/savings/${id}`);
+        savings = await savingsResponse.json();
+        console.log("Savings data:", savings);
       } catch (error) {
         console.error("Failed to fetch savings:", error);
       }
@@ -77,63 +82,92 @@ export default function MemberDetailsPage() {
       // Get loans with repayments
       let loans = null;
       try {
-        loans = await apiRequest("GET", `/api/loans/user/${id}`);
+        const loansResponse = await apiRequest("GET", `/api/loans/user/${id}`);
+        loans = await loansResponse.json();
+        console.log("Loans data:", loans);
       } catch (error) {
         console.error("Failed to fetch loans:", error);
       }
       
-      return { user, savings, loans };
+      // Also fetch recent transactions
+      let transactions = [];
+      try {
+        const transactionsResponse = await apiRequest("GET", `/api/transactions/user/${id}`);
+        transactions = await transactionsResponse.json();
+        console.log("Transactions data:", transactions);
+      } catch (error) {
+        console.error("Failed to fetch transactions:", error);
+      }
+      
+      return { user, savings, loans, transactions };
     }
   });
   
-  // Construct transaction history from deposits, withdrawals, and loan repayments
+  // Construct transaction history from API data and fallback to deposits, withdrawals, and loan repayments if necessary
   const allTransactions: Transaction[] = [];
   
   if (memberDetails) {
-    // Add deposits
-    if (memberDetails.savings && Array.isArray(memberDetails.savings.deposits) && memberDetails.savings.deposits.length) {
-      memberDetails.savings.deposits.forEach(deposit => {
+    // First try to use the transactions data from our transactions API
+    if (memberDetails.transactions && Array.isArray(memberDetails.transactions) && memberDetails.transactions.length) {
+      console.log("Using transactions from API:", memberDetails.transactions);
+      memberDetails.transactions.forEach(transaction => {
         allTransactions.push({
-          id: `dep-${deposit.id}`,
-          type: 'deposit',
-          date: new Date(deposit.createdAt),
-          amount: parseFloat(deposit.amount),
-          status: 'completed',
-          reference: `#TRX-${deposit.id}${Math.floor(Math.random() * 1000)}`
+          id: transaction.id || `trx-${Math.random().toString(36).substr(2, 9)}`,
+          type: transaction.type as 'deposit' | 'withdrawal' | 'loan_repayment',
+          date: transaction.date ? new Date(transaction.date) : new Date(),
+          amount: typeof transaction.amount === 'string' ? parseFloat(transaction.amount) : transaction.amount,
+          status: transaction.status || 'completed',
+          reference: transaction.reference || `#TRX-${Math.floor(Math.random() * 10000)}`
         });
       });
-    }
-    
-    // Add withdrawals
-    if (memberDetails.savings && Array.isArray(memberDetails.savings.withdrawals) && memberDetails.savings.withdrawals.length) {
-      memberDetails.savings.withdrawals.forEach(withdrawal => {
-        allTransactions.push({
-          id: `wdr-${withdrawal.id}`,
-          type: 'withdrawal',
-          date: new Date(withdrawal.createdAt),
-          amount: parseFloat(withdrawal.amount),
-          status: withdrawal.status.toLowerCase() as 'completed' | 'pending' | 'rejected',
-          reference: `#TRX-${withdrawal.id}${Math.floor(Math.random() * 1000)}`
-        });
-      });
-    }
-    
-    // Add loan repayments
-    if (Array.isArray(memberDetails.loans) && memberDetails.loans.length) {
-      memberDetails.loans.forEach(loan => {
-        if (Array.isArray(loan.repayments) && loan.repayments.length) {
-          loan.repayments.forEach(repayment => {
-            allTransactions.push({
-              id: `rep-${repayment.id}`,
-              type: 'loan_repayment',
-              date: new Date(repayment.createdAt),
-              amount: parseFloat(repayment.amount),
-              status: 'completed',
-              reference: `#TRX-${repayment.id}${Math.floor(Math.random() * 1000)}`
-            });
+    } else {
+      console.log("No transactions data from API, falling back to constructing from individual components");
+      
+      // Fallback: Add deposits
+      if (memberDetails.savings && Array.isArray(memberDetails.savings.deposits) && memberDetails.savings.deposits.length) {
+        memberDetails.savings.deposits.forEach(deposit => {
+          allTransactions.push({
+            id: `dep-${deposit.id}`,
+            type: 'deposit',
+            date: new Date(deposit.createdAt),
+            amount: parseFloat(deposit.amount),
+            status: 'completed',
+            reference: `#TRX-${deposit.id}${Math.floor(Math.random() * 1000)}`
           });
-        }
-      });
+        });
+      }
+      
+      // Fallback: Add withdrawals
+      if (memberDetails.savings && Array.isArray(memberDetails.savings.withdrawals) && memberDetails.savings.withdrawals.length) {
+        memberDetails.savings.withdrawals.forEach(withdrawal => {
+          allTransactions.push({
+            id: `wdr-${withdrawal.id}`,
+            type: 'withdrawal',
+            date: new Date(withdrawal.createdAt),
+            amount: parseFloat(withdrawal.amount),
+            status: withdrawal.status.toLowerCase() as 'completed' | 'pending' | 'rejected',
+            reference: `#TRX-${withdrawal.id}${Math.floor(Math.random() * 1000)}`
+          });
+        });
+      }
+      
+      // Fallback: Add loan repayments
+      if (Array.isArray(memberDetails.loans) && memberDetails.loans.length) {
+        memberDetails.loans.forEach(loan => {
+          if (Array.isArray(loan.repayments) && loan.repayments.length) {
+            loan.repayments.forEach(repayment => {
+              allTransactions.push({
+                id: `rep-${repayment.id}`,
+                type: 'loan_repayment',
+                date: new Date(repayment.createdAt),
+                amount: parseFloat(repayment.amount),
+                status: 'completed',
+                reference: `#TRX-${repayment.id}${Math.floor(Math.random() * 1000)}`
+              });
+            });
+          }
+        });
+      }
     }
   }
   
