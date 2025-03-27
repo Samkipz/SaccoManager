@@ -13,7 +13,8 @@ import {
   LogOut,
   Menu,
   User,
-  Building2 as Bank
+  Building2 as Bank,
+  PiggyBank
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -58,6 +59,11 @@ export function Sidebar({ className }: SidebarProps) {
       title: "Transactions",
       href: "/transactions",
       icon: <RefreshCw className="mr-3 text-lg" />,
+    },
+    {
+      title: "Budget",
+      href: "/budget",
+      icon: <PiggyBank className="mr-3 text-lg" />,
     },
   ];
 

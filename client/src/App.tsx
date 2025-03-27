@@ -8,6 +8,7 @@ import DashboardPage from "@/pages/dashboard";
 import SavingsPage from "@/pages/savings";
 import LoansPage from "@/pages/loans";
 import TransactionsPage from "@/pages/transactions";
+import BudgetPage from "@/pages/budget";
 import MembersPage from "@/pages/admin/members";
 import MemberDetailsPage from "@/pages/admin/member-details";
 import LoanApprovalsPage from "@/pages/admin/loan-approvals";
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/savings" component={SavingsPage} />
       <Route path="/loans" component={LoansPage} />
       <Route path="/transactions" component={TransactionsPage} />
+      <Route path="/budget" component={BudgetPage} />
       
       {/* Admin routes */}
       <Route path="/admin/members" component={MembersPage} />

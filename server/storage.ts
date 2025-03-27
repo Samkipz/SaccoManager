@@ -5,7 +5,10 @@ import {
   Withdrawal, InsertWithdrawal, 
   Loan, InsertLoan, 
   Repayment, InsertRepayment,
-  users, savings, deposits, withdrawals, loans, repayments
+  BudgetCategory, InsertBudgetCategory,
+  BudgetRecommendation, InsertBudgetRecommendation,
+  users, savings, deposits, withdrawals, loans, repayments,
+  budgetCategories, budgetRecommendations
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, desc, and } from "drizzle-orm";
@@ -50,6 +53,21 @@ export interface IStorage {
   getRepayment(id: number): Promise<Repayment | undefined>;
   getRepaymentsByLoanId(loanId: number): Promise<Repayment[]>;
   createRepayment(repayment: InsertRepayment): Promise<Repayment>;
+  
+  // Budget Category operations
+  getBudgetCategory(id: number): Promise<BudgetCategory | undefined>;
+  getBudgetCategoriesByUserId(userId: number): Promise<BudgetCategory[]>;
+  createBudgetCategory(budgetCategory: InsertBudgetCategory): Promise<BudgetCategory>;
+  updateBudgetCategory(id: number, data: Partial<InsertBudgetCategory>): Promise<BudgetCategory>;
+  deleteBudgetCategory(id: number): Promise<void>;
+  
+  // Budget Recommendation operations
+  getBudgetRecommendation(id: number): Promise<BudgetRecommendation | undefined>;
+  getBudgetRecommendationsByUserId(userId: number): Promise<BudgetRecommendation[]>;
+  createBudgetRecommendation(budgetRecommendation: InsertBudgetRecommendation): Promise<BudgetRecommendation>;
+  updateBudgetRecommendationStatus(id: number, isImplemented: boolean): Promise<BudgetRecommendation>;
+  deleteBudgetRecommendation(id: number): Promise<void>;
+  generateBudgetRecommendations(userId: number): Promise<BudgetRecommendation[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -297,6 +315,166 @@ export class DatabaseStorage implements IStorage {
     const [repayment] = await db.insert(repayments).values(repaymentData).returning();
     return repayment;
   }
+  
+  // Budget Category operations
+  async getBudgetCategory(id: number): Promise<BudgetCategory | undefined> {
+    const [category] = await db.select().from(budgetCategories).where(eq(budgetCategories.id, id));
+    return category || undefined;
+  }
+  
+  async getBudgetCategoriesByUserId(userId: number): Promise<BudgetCategory[]> {
+    return db
+      .select()
+      .from(budgetCategories)
+      .where(eq(budgetCategories.userId, userId))
+      .orderBy(budgetCategories.category);
+  }
+  
+  async createBudgetCategory(budgetCategoryData: InsertBudgetCategory): Promise<BudgetCategory> {
+    const [category] = await db.insert(budgetCategories).values(budgetCategoryData).returning();
+    return category;
+  }
+  
+  async updateBudgetCategory(id: number, data: Partial<InsertBudgetCategory>): Promise<BudgetCategory> {
+    const [updatedCategory] = await db
+      .update(budgetCategories)
+      .set(data)
+      .where(eq(budgetCategories.id, id))
+      .returning();
+    
+    if (!updatedCategory) {
+      throw new Error("Budget category not found");
+    }
+    
+    return updatedCategory;
+  }
+  
+  async deleteBudgetCategory(id: number): Promise<void> {
+    await db.delete(budgetCategories).where(eq(budgetCategories.id, id));
+  }
+  
+  // Budget Recommendation operations
+  async getBudgetRecommendation(id: number): Promise<BudgetRecommendation | undefined> {
+    const [recommendation] = await db.select().from(budgetRecommendations).where(eq(budgetRecommendations.id, id));
+    return recommendation || undefined;
+  }
+  
+  async getBudgetRecommendationsByUserId(userId: number): Promise<BudgetRecommendation[]> {
+    return db
+      .select()
+      .from(budgetRecommendations)
+      .where(eq(budgetRecommendations.userId, userId))
+      .orderBy(desc(budgetRecommendations.createdAt));
+  }
+  
+  async createBudgetRecommendation(budgetRecommendationData: InsertBudgetRecommendation): Promise<BudgetRecommendation> {
+    const [recommendation] = await db.insert(budgetRecommendations).values(budgetRecommendationData).returning();
+    return recommendation;
+  }
+  
+  async updateBudgetRecommendationStatus(id: number, isImplemented: boolean): Promise<BudgetRecommendation> {
+    const [updatedRecommendation] = await db
+      .update(budgetRecommendations)
+      .set({ isImplemented })
+      .where(eq(budgetRecommendations.id, id))
+      .returning();
+    
+    if (!updatedRecommendation) {
+      throw new Error("Budget recommendation not found");
+    }
+    
+    return updatedRecommendation;
+  }
+  
+  async deleteBudgetRecommendation(id: number): Promise<void> {
+    await db.delete(budgetRecommendations).where(eq(budgetRecommendations.id, id));
+  }
+  
+  async generateBudgetRecommendations(userId: number): Promise<BudgetRecommendation[]> {
+    // Get user's financial data
+    const user = await this.getUser(userId);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    const savings = await this.getSavingsByUserId(userId);
+    const loans = await this.getLoansByUserId(userId);
+    
+    // Get existing budget categories
+    const existingCategories = await this.getBudgetCategoriesByUserId(userId);
+    
+    // Current recommendations
+    const recommendations: InsertBudgetRecommendation[] = [];
+    
+    // Generate recommendations based on financial data
+    
+    // 1. Savings recommendation - if savings balance is low
+    if (!savings || parseFloat(savings.balance) < 1000) {
+      recommendations.push({
+        userId,
+        type: "SAVING",
+        title: "Build Your Emergency Fund",
+        description: "Start with saving at least $1,000 for emergencies. We recommend setting aside 10% of your income each month until you reach this goal.",
+        suggestedAmount: "1000.00",
+        category: "SAVINGS",
+        isImplemented: false
+      });
+    }
+    
+    // 2. Debt management recommendation - if user has loans
+    if (loans && loans.length > 0) {
+      const approvedLoans = loans.filter(loan => loan.status === "APPROVED");
+      
+      if (approvedLoans.length > 0) {
+        // Calculate total outstanding loans
+        const totalLoanAmount = approvedLoans.reduce((sum, loan) => sum + parseFloat(loan.amount), 0);
+        
+        if (totalLoanAmount > 0) {
+          recommendations.push({
+            userId,
+            type: "DEBT_MANAGEMENT",
+            title: "Accelerate Your Loan Repayment",
+            description: `You have $${totalLoanAmount.toFixed(2)} in outstanding loans. Consider allocating an additional 5-10% of your monthly income towards loan repayment to save on interest.`,
+            category: "DEBT",
+            isImplemented: false
+          });
+        }
+      }
+    }
+    
+    // 3. Budget allocation recommendation - if no budget categories exist
+    if (existingCategories.length === 0) {
+      recommendations.push({
+        userId,
+        type: "SAVING",
+        title: "Create A Monthly Budget Plan",
+        description: "We recommend following the 50/30/20 rule: 50% for needs, 30% for wants, and 20% for savings and debt repayment.",
+        category: "OTHER",
+        isImplemented: false
+      });
+    }
+    
+    // Check if housing budget exists and is properly allocated
+    const housingCategory = existingCategories.find(cat => cat.category === "HOUSING");
+    if (!housingCategory) {
+      recommendations.push({
+        userId,
+        type: "SPENDING",
+        title: "Set Your Housing Budget",
+        description: "Housing costs should ideally be less than 30% of your income. Track your rent/mortgage, utilities, and maintenance in this category.",
+        category: "HOUSING",
+        isImplemented: false
+      });
+    }
+    
+    // Save recommendations to database
+    const savedRecommendations: BudgetRecommendation[] = [];
+    for (const rec of recommendations) {
+      savedRecommendations.push(await this.createBudgetRecommendation(rec));
+    }
+    
+    return savedRecommendations;
+  }
 
   // Seed data for initial database setup
   async seedInitialData(): Promise<void> {
@@ -379,6 +557,39 @@ export class DatabaseStorage implements IStorage {
         description: "For a short course in web development",
         status: "PENDING"
       }).returning();
+      
+      // Add sample budget categories
+      await this.createBudgetCategory({
+        userId: member.id,
+        category: "HOUSING",
+        amount: "800.00",
+        notes: "Rent and utilities"
+      });
+      
+      await this.createBudgetCategory({
+        userId: member.id,
+        category: "FOOD",
+        amount: "350.00",
+        notes: "Groceries and eating out"
+      });
+      
+      await this.createBudgetCategory({
+        userId: member.id,
+        category: "TRANSPORTATION",
+        amount: "150.00",
+        notes: "Public transport and occasional taxi"
+      });
+      
+      // Add a sample budget recommendation
+      await this.createBudgetRecommendation({
+        userId: member.id,
+        type: "SAVING",
+        title: "Increase Your Emergency Fund",
+        description: "We recommend saving at least 3-6 months of expenses in your emergency fund.",
+        suggestedAmount: "5000.00",
+        category: "SAVINGS",
+        isImplemented: false
+      });
       
       console.log("Initial data seeding complete");
     } else {

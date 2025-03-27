@@ -4,7 +4,11 @@ import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
-import { insertUserSchema, userLoginSchema, insertDepositSchema, insertWithdrawalSchema, insertLoanSchema } from "@shared/schema";
+import { 
+  insertUserSchema, userLoginSchema, insertDepositSchema, 
+  insertWithdrawalSchema, insertLoanSchema, insertBudgetCategorySchema,
+  insertBudgetRecommendationSchema
+} from "@shared/schema";
 
 // JWT Secret
 const JWT_SECRET = process.env.JWT_SECRET || "sacco_secret_key";
@@ -960,6 +964,226 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json({ message: "User deleted successfully" });
     } catch (error) {
       console.error("Delete member error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Budget Category Routes
+  app.get("/api/budget/categories/:userId", authenticateUser, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Check if user is requesting own data or is admin
+      if (req.user.id !== userId && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const categories = await storage.getBudgetCategoriesByUserId(userId);
+      return res.status(200).json(categories);
+    } catch (error) {
+      console.error("Get budget categories error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.post("/api/budget/categories", authenticateUser, async (req, res) => {
+    try {
+      const validationResult = insertBudgetCategorySchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Invalid input", errors: validationResult.error.errors });
+      }
+      
+      const { userId, category, amount, notes } = validationResult.data;
+      
+      // Check if user is creating for own account or is admin
+      if (userId !== req.user.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Create budget category
+      const budgetCategory = await storage.createBudgetCategory({
+        userId,
+        category,
+        amount,
+        notes
+      });
+      
+      return res.status(201).json(budgetCategory);
+    } catch (error) {
+      console.error("Create budget category error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.patch("/api/budget/categories/:id", authenticateUser, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.id);
+      
+      // Get the category to check permissions
+      const category = await storage.getBudgetCategory(categoryId);
+      if (!category) {
+        return res.status(404).json({ message: "Budget category not found" });
+      }
+      
+      // Check if user is updating own category or is admin
+      if (category.userId !== req.user.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Validate input
+      const validationResult = insertBudgetCategorySchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Invalid input", errors: validationResult.error.errors });
+      }
+      
+      // Update category
+      const updatedCategory = await storage.updateBudgetCategory(categoryId, validationResult.data);
+      
+      return res.status(200).json(updatedCategory);
+    } catch (error) {
+      console.error("Update budget category error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.delete("/api/budget/categories/:id", authenticateUser, async (req, res) => {
+    try {
+      const categoryId = parseInt(req.params.id);
+      
+      // Get the category to check permissions
+      const category = await storage.getBudgetCategory(categoryId);
+      if (!category) {
+        return res.status(404).json({ message: "Budget category not found" });
+      }
+      
+      // Check if user is deleting own category or is admin
+      if (category.userId !== req.user.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Delete category
+      await storage.deleteBudgetCategory(categoryId);
+      
+      return res.status(200).json({ message: "Budget category deleted successfully" });
+    } catch (error) {
+      console.error("Delete budget category error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Budget Recommendations Routes
+  app.get("/api/budget/recommendations/:userId", authenticateUser, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Check if user is requesting own data or is admin
+      if (req.user.id !== userId && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const recommendations = await storage.getBudgetRecommendationsByUserId(userId);
+      return res.status(200).json(recommendations);
+    } catch (error) {
+      console.error("Get budget recommendations error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.post("/api/budget/recommendations/generate/:userId", authenticateUser, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.userId);
+      
+      // Check if user is generating for own account or is admin
+      if (req.user.id !== userId && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Generate recommendations
+      const recommendations = await storage.generateBudgetRecommendations(userId);
+      
+      return res.status(201).json(recommendations);
+    } catch (error) {
+      console.error("Generate budget recommendations error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.post("/api/budget/recommendations", authenticateUser, async (req, res) => {
+    try {
+      const validationResult = insertBudgetRecommendationSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Invalid input", errors: validationResult.error.errors });
+      }
+      
+      const data = validationResult.data;
+      
+      // Check if user is creating for own account or is admin
+      if (data.userId !== req.user.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Create recommendation
+      const recommendation = await storage.createBudgetRecommendation(data);
+      
+      return res.status(201).json(recommendation);
+    } catch (error) {
+      console.error("Create budget recommendation error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.patch("/api/budget/recommendations/:id/implement", authenticateUser, async (req, res) => {
+    try {
+      const recommendationId = parseInt(req.params.id);
+      
+      // Get the recommendation to check permissions
+      const recommendation = await storage.getBudgetRecommendation(recommendationId);
+      if (!recommendation) {
+        return res.status(404).json({ message: "Budget recommendation not found" });
+      }
+      
+      // Check if user is updating own recommendation or is admin
+      if (recommendation.userId !== req.user.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Get implementation status from request body (default to true if not provided)
+      const { implemented = true } = req.body;
+      
+      // Update recommendation implementation status
+      const updatedRecommendation = await storage.updateBudgetRecommendationStatus(
+        recommendationId, 
+        implemented === true || implemented === "true"
+      );
+      
+      return res.status(200).json(updatedRecommendation);
+    } catch (error) {
+      console.error("Update budget recommendation status error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.delete("/api/budget/recommendations/:id", authenticateUser, async (req, res) => {
+    try {
+      const recommendationId = parseInt(req.params.id);
+      
+      // Get the recommendation to check permissions
+      const recommendation = await storage.getBudgetRecommendation(recommendationId);
+      if (!recommendation) {
+        return res.status(404).json({ message: "Budget recommendation not found" });
+      }
+      
+      // Check if user is deleting own recommendation or is admin
+      if (recommendation.userId !== req.user.id && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      // Delete recommendation
+      await storage.deleteBudgetRecommendation(recommendationId);
+      
+      return res.status(200).json({ message: "Budget recommendation deleted successfully" });
+    } catch (error) {
+      console.error("Delete budget recommendation error:", error);
       return res.status(500).json({ message: "Server error" });
     }
   });
