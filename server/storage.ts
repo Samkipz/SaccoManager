@@ -15,6 +15,8 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  updateUser(id: number, userData: Partial<InsertUser>): Promise<User>;
+  deleteUser(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
 
   // Savings operations
@@ -72,6 +74,62 @@ export class DatabaseStorage implements IStorage {
 
   async getAllUsers(): Promise<User[]> {
     return db.select().from(users).orderBy(users.name);
+  }
+  
+  async updateUser(id: number, userData: Partial<InsertUser>): Promise<User> {
+    const [updatedUser] = await db
+      .update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
+    
+    if (!updatedUser) {
+      throw new Error("User not found");
+    }
+    
+    return updatedUser;
+  }
+  
+  async deleteUser(id: number): Promise<void> {
+    // First check if user exists
+    const user = await this.getUser(id);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    
+    // Get user's savings account
+    const savingsAccount = await this.getSavingsByUserId(id);
+    
+    if (savingsAccount) {
+      // Delete all withdrawals related to this savings account
+      await db.delete(withdrawals)
+        .where(eq(withdrawals.savingsId, savingsAccount.id));
+      
+      // Delete all deposits related to this savings account
+      await db.delete(deposits)
+        .where(eq(deposits.savingsId, savingsAccount.id));
+      
+      // Delete the savings account
+      await db.delete(savings)
+        .where(eq(savings.id, savingsAccount.id));
+    }
+    
+    // Get user's loans
+    const userLoans = await this.getLoansByUserId(id);
+    
+    for (const loan of userLoans) {
+      // Delete all repayments for this loan
+      await db.delete(repayments)
+        .where(eq(repayments.loanId, loan.id));
+    }
+    
+    // Delete all loans
+    await db.delete(loans)
+      .where(eq(loans.userId, id));
+    
+    // Finally delete the user
+    await db.delete(users)
+      .where(eq(users.id, id));
   }
 
   // Savings operations

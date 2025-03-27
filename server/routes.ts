@@ -38,6 +38,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(403).json({ message: "Admin access required" });
     }
   };
+  
+  // Validate email and prevent duplicates middleware
+  const validateEmailAndPreventDuplicates = async (req: any, res: any, next: any) => {
+    try {
+      const { email } = req.body;
+      
+      if (email) {
+        // Check for valid email format
+        if (!email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+          return res.status(400).json({ message: "Invalid email format" });
+        }
+        
+        // Check for existing user with same email
+        // Skip checking the current user when updating
+        const userId = req.params.id ? parseInt(req.params.id) : null;
+        const existingUser = await storage.getUserByEmail(email);
+        
+        if (existingUser && existingUser.id !== userId) {
+          return res.status(400).json({ message: "Email already in use" });
+        }
+      }
+      
+      next();
+    } catch (error) {
+      console.error("Email validation error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  };
 
   // Auth Routes
   app.post("/api/auth/register", async (req, res) => {
@@ -760,6 +788,106 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(200).json(data);
     } catch (error) {
       console.error("Loan distribution report error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Member Management CRUD Endpoints (Admin only)
+  
+  // Create a new member
+  app.post("/api/users", authenticateUser, ensureAdmin, validateEmailAndPreventDuplicates, async (req, res) => {
+    try {
+      const validationResult = insertUserSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Invalid input", errors: validationResult.error.errors });
+      }
+
+      const { name, email, password, role } = validationResult.data;
+
+      // Hash password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Create user
+      const user = await storage.createUser({
+        name,
+        email,
+        password: hashedPassword,
+        role: role || "MEMBER" // Default to MEMBER if not specified
+      });
+
+      // Create savings account for the user
+      await storage.createSavings({
+        userId: user.id,
+        balance: "0"
+      });
+
+      return res.status(201).json(user);
+    } catch (error) {
+      console.error("Create member error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Update a member
+  app.patch("/api/users/:id", authenticateUser, ensureAdmin, validateEmailAndPreventDuplicates, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { name, email, password, role } = req.body;
+
+      // Check if member exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only allow editing members, not admins (unless the request is to change a member to admin)
+      if (user.role === "ADMIN" && role !== "MEMBER") {
+        return res.status(403).json({ message: "Cannot edit admin users" });
+      }
+
+      // Prepare update data
+      const updateData: any = {};
+      if (name) updateData.name = name;
+      if (email) updateData.email = email;
+      if (role) updateData.role = role;
+      
+      // Hash password if provided
+      if (password) {
+        updateData.password = await bcrypt.hash(password, 10);
+      }
+
+      // Update user
+      const updatedUser = await storage.updateUser(userId, updateData);
+
+      return res.status(200).json(updatedUser);
+    } catch (error) {
+      console.error("Update member error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
+  // Delete a member
+  app.delete("/api/users/:id", authenticateUser, ensureAdmin, async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+
+      // Check if member exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      // Only allow deleting members, not admins
+      if (user.role === "ADMIN") {
+        return res.status(403).json({ message: "Cannot delete admin users" });
+      }
+
+      // Delete user and related data
+      await storage.deleteUser(userId);
+
+      return res.status(200).json({ message: "User deleted successfully" });
+    } catch (error) {
+      console.error("Delete member error:", error);
       return res.status(500).json({ message: "Server error" });
     }
   });
