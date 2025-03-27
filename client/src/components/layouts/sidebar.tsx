@@ -13,7 +13,7 @@ import {
   LogOut,
   Menu,
   User,
-  Bank
+  Building2 as Bank
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useIsMobile } from "@/hooks/use-mobile";
