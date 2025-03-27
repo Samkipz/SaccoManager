@@ -742,17 +742,17 @@ export default function MemberDetailsPage() {
                 )}
                 
                 {/* Loan Repayments */}
-                {memberDetails.loans && memberDetails.loans.some(loan => loan.repayments && loan.repayments.length > 0) && (
+                {memberDetails.loans && Array.isArray(memberDetails.loans) && memberDetails.loans.some(loan => loan.repayments && loan.repayments.length > 0) && (
                   <div className="pt-4 mt-4 border-t">
                     <h3 className="text-lg font-semibold mb-4">Loan Repayments</h3>
                     
-                    {memberDetails.loans.map(loan => {
+                    {Array.isArray(memberDetails.loans) && memberDetails.loans.map(loan => {
                       if (!loan.repayments || loan.repayments.length === 0) return null;
                       
                       // Calculate total amount paid vs. loan amount
-                      const totalPaid = loan.repayments.reduce((sum, repayment) => {
+                      const totalPaid = Array.isArray(loan.repayments) ? loan.repayments.reduce((sum, repayment) => {
                         return sum + parseFloat(repayment.amount);
-                      }, 0);
+                      }, 0) : 0;
                       
                       const percentagePaid = Math.min(Math.round((totalPaid / parseFloat(loan.amount)) * 100), 100);
                       
@@ -791,7 +791,7 @@ export default function MemberDetailsPage() {
                                 </tr>
                               </thead>
                               <tbody className="divide-y divide-gray-100">
-                                {loan.repayments.map(repayment => (
+                                {Array.isArray(loan.repayments) && loan.repayments.map(repayment => (
                                   <tr key={repayment.id}>
                                     <td className="px-2 py-2 whitespace-nowrap">
                                       {repayment.createdAt ? format(new Date(repayment.createdAt), "MMM dd, yyyy") : "Unknown"}
