@@ -91,7 +91,7 @@ export default function MemberDetailsPage() {
   
   if (memberDetails) {
     // Add deposits
-    if (memberDetails.savings?.deposits?.length) {
+    if (memberDetails.savings && Array.isArray(memberDetails.savings.deposits) && memberDetails.savings.deposits.length) {
       memberDetails.savings.deposits.forEach(deposit => {
         allTransactions.push({
           id: `dep-${deposit.id}`,
@@ -105,7 +105,7 @@ export default function MemberDetailsPage() {
     }
     
     // Add withdrawals
-    if (memberDetails.savings?.withdrawals?.length) {
+    if (memberDetails.savings && Array.isArray(memberDetails.savings.withdrawals) && memberDetails.savings.withdrawals.length) {
       memberDetails.savings.withdrawals.forEach(withdrawal => {
         allTransactions.push({
           id: `wdr-${withdrawal.id}`,
@@ -119,9 +119,9 @@ export default function MemberDetailsPage() {
     }
     
     // Add loan repayments
-    if (memberDetails.loans?.length) {
+    if (Array.isArray(memberDetails.loans) && memberDetails.loans.length) {
       memberDetails.loans.forEach(loan => {
-        if (loan.repayments?.length) {
+        if (Array.isArray(loan.repayments) && loan.repayments.length) {
           loan.repayments.forEach(repayment => {
             allTransactions.push({
               id: `rep-${repayment.id}`,
@@ -225,29 +225,39 @@ export default function MemberDetailsPage() {
     const savingsBalance = memberDetails.savings ? parseFloat(memberDetails.savings.balance) : 0;
     
     // Total deposits
-    const totalDeposits = memberDetails.savings?.deposits?.reduce((sum, deposit) => {
-      return sum + parseFloat(deposit.amount);
-    }, 0) || 0;
+    const totalDeposits = memberDetails.savings && Array.isArray(memberDetails.savings.deposits) 
+      ? memberDetails.savings.deposits.reduce((sum, deposit) => {
+          return sum + parseFloat(deposit.amount);
+        }, 0) 
+      : 0;
     
     // Total withdrawals
-    const totalWithdrawals = memberDetails.savings?.withdrawals?.filter(w => w.status === 'APPROVED').reduce((sum, withdrawal) => {
-      return sum + parseFloat(withdrawal.amount);
-    }, 0) || 0;
+    const totalWithdrawals = 
+      memberDetails.savings && 
+      Array.isArray(memberDetails.savings.withdrawals) 
+        ? memberDetails.savings.withdrawals
+            .filter(w => w.status === 'APPROVED')
+            .reduce((sum, withdrawal) => sum + parseFloat(withdrawal.amount), 0)
+        : 0;
     
     // Loan balance (sum of all approved loans)
-    const loanBalance = memberDetails.loans?.filter(loan => loan.status === 'APPROVED').reduce((sum, loan) => {
-      return sum + parseFloat(loan.amount);
-    }, 0) || 0;
+    const loanBalance = Array.isArray(memberDetails.loans) 
+      ? memberDetails.loans
+          .filter(loan => loan.status === 'APPROVED')
+          .reduce((sum, loan) => sum + parseFloat(loan.amount), 0) 
+      : 0;
     
     // Loan repayments
-    const loanRepayments = memberDetails.loans?.reduce((sum, loan) => {
-      if (loan.repayments?.length) {
-        return sum + loan.repayments.reduce((sum, repayment) => {
-          return sum + parseFloat(repayment.amount);
-        }, 0);
-      }
-      return sum;
-    }, 0) || 0;
+    const loanRepayments = Array.isArray(memberDetails.loans)
+      ? memberDetails.loans.reduce((sum, loan) => {
+          if (Array.isArray(loan.repayments) && loan.repayments.length) {
+            return sum + loan.repayments.reduce((sum, repayment) => {
+              return sum + parseFloat(repayment.amount);
+            }, 0);
+          }
+          return sum;
+        }, 0)
+      : 0;
     
     return {
       totalSavings: savingsBalance,
@@ -362,7 +372,7 @@ export default function MemberDetailsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">${metrics.totalSavings.toFixed(2)}</div>
-                  <p className="text-xs text-gray-500 mt-1">From {memberDetails.savings?.deposits?.length || 0} deposits</p>
+                  <p className="text-xs text-gray-500 mt-1">From {memberDetails.savings && Array.isArray(memberDetails.savings.deposits) ? memberDetails.savings.deposits.length : 0} deposits</p>
                 </CardContent>
               </Card>
               
@@ -389,7 +399,9 @@ export default function MemberDetailsPage() {
                 <CardContent>
                   <div className="text-2xl font-bold text-orange-600">${metrics.totalWithdrawals.toFixed(2)}</div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {memberDetails.savings?.withdrawals?.filter(w => w.status === 'APPROVED').length || 0} approved withdrawals
+                    {memberDetails.savings && Array.isArray(memberDetails.savings.withdrawals) 
+                      ? memberDetails.savings.withdrawals.filter(w => w.status === 'APPROVED').length 
+                      : 0} approved withdrawals
                   </p>
                 </CardContent>
               </Card>
@@ -404,7 +416,7 @@ export default function MemberDetailsPage() {
                 <CardContent>
                   <div className="text-2xl font-bold text-blue-600">${metrics.loanBalance.toFixed(2)}</div>
                   <p className="text-xs text-gray-500 mt-1">
-                    {memberDetails.loans?.filter(loan => loan.status === 'APPROVED').length || 0} active loans
+                    {Array.isArray(memberDetails.loans) ? memberDetails.loans.filter(loan => loan.status === 'APPROVED').length : 0} active loans
                   </p>
                 </CardContent>
               </Card>
@@ -560,7 +572,7 @@ export default function MemberDetailsPage() {
                         </CardHeader>
                         <CardContent>
                           <div className="text-2xl font-bold text-green-600">${metrics.totalDeposits.toFixed(2)}</div>
-                          <p className="text-xs text-gray-500">{memberDetails.savings.deposits?.length || 0} transactions</p>
+                          <p className="text-xs text-gray-500">{memberDetails.savings && Array.isArray(memberDetails.savings.deposits) ? memberDetails.savings.deposits.length : 0} transactions</p>
                         </CardContent>
                       </Card>
                       
@@ -571,8 +583,12 @@ export default function MemberDetailsPage() {
                         <CardContent>
                           <div className="text-2xl font-bold text-orange-600">${metrics.totalWithdrawals.toFixed(2)}</div>
                           <p className="text-xs text-gray-500">
-                            {memberDetails.savings.withdrawals?.filter(w => w.status === 'APPROVED').length || 0} approved / 
-                            {memberDetails.savings.withdrawals?.length || 0} total
+                            {Array.isArray(memberDetails.savings.withdrawals) 
+                              ? memberDetails.savings.withdrawals.filter(w => w.status === 'APPROVED').length 
+                              : 0} approved / 
+                            {Array.isArray(memberDetails.savings.withdrawals) 
+                              ? memberDetails.savings.withdrawals.length 
+                              : 0} total
                           </p>
                         </CardContent>
                       </Card>
@@ -581,7 +597,7 @@ export default function MemberDetailsPage() {
                     <div className="space-y-6">
                       <div>
                         <h3 className="text-lg font-semibold mb-4">Deposit History</h3>
-                        {memberDetails.savings.deposits && memberDetails.savings.deposits.length > 0 ? (
+                        {memberDetails.savings && Array.isArray(memberDetails.savings.deposits) && memberDetails.savings.deposits.length > 0 ? (
                           <DataTable 
                             data={memberDetails.savings.deposits}
                             columns={[
@@ -620,7 +636,7 @@ export default function MemberDetailsPage() {
                       
                       <div>
                         <h3 className="text-lg font-semibold mb-4">Withdrawal History</h3>
-                        {memberDetails.savings.withdrawals && memberDetails.savings.withdrawals.length > 0 ? (
+                        {memberDetails.savings && Array.isArray(memberDetails.savings.withdrawals) && memberDetails.savings.withdrawals.length > 0 ? (
                           <DataTable 
                             data={memberDetails.savings.withdrawals}
                             columns={[
