@@ -16,6 +16,7 @@ import {
   RefreshCw 
 } from "lucide-react";
 import { UserWithSavingsAndLoans } from "@shared/schema";
+import { motion } from "framer-motion";
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -60,55 +61,108 @@ export default function DashboardPage() {
   // Recent transactions count for display
   const recentTransactionsCount = transactionsData?.length || 0;
 
+  // Create animation variants for staggered animations
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        when: "beforeChildren"
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { type: "spring", stiffness: 300, damping: 24 }
+    }
+  };
+
+  const tableVariants = {
+    hidden: { opacity: 0, y: 30 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        type: "spring", 
+        stiffness: 100, 
+        damping: 20,
+        delay: 0.4 
+      }
+    }
+  };
+
   return (
     <AppLayout 
       title="Dashboard" 
       description={`Welcome back, ${user?.name}`}
     >
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        <SummaryCard
-          title="Total Savings"
-          value={`$${savingsBalance.toFixed(2)}`}
-          icon={<DollarSign className="h-5 w-5" />}
-          trend={{ value: "+5.2%", positive: true }}
-          linkHref="/savings"
-          linkText="View Details"
-        />
+      <motion.div 
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
+        initial="hidden"
+        animate="visible"
+        variants={containerVariants}
+      >
+        <motion.div variants={itemVariants} custom={0}>
+          <SummaryCard
+            title="Total Savings"
+            value={`$${savingsBalance.toFixed(2)}`}
+            icon={<DollarSign className="h-5 w-5" />}
+            trend={{ value: "+5.2%", positive: true }}
+            linkHref="/savings"
+            linkText="View Details"
+          />
+        </motion.div>
         
-        <SummaryCard
-          title="Active Loans"
-          value={`$${activeLoansAmount.toFixed(2)}`}
-          icon={<Coins className="h-5 w-5" />}
-          trend={{ value: "Due in 45 days", positive: false }}
-          linkHref="/loans"
-          linkText="View Details"
-        />
+        <motion.div variants={itemVariants} custom={1}>
+          <SummaryCard
+            title="Active Loans"
+            value={`$${activeLoansAmount.toFixed(2)}`}
+            icon={<Coins className="h-5 w-5" />}
+            trend={{ value: "Due in 45 days", positive: false }}
+            linkHref="/loans"
+            linkText="View Details"
+          />
+        </motion.div>
         
-        <SummaryCard
-          title="Pending Applications"
-          value={pendingApplicationsCount}
-          icon={<Clock className="h-5 w-5" />}
-          linkHref="/loans"
-          linkText="View Applications"
-        />
+        <motion.div variants={itemVariants} custom={2}>
+          <SummaryCard
+            title="Pending Applications"
+            value={pendingApplicationsCount}
+            icon={<Clock className="h-5 w-5" />}
+            linkHref="/loans"
+            linkText="View Applications"
+          />
+        </motion.div>
         
-        <SummaryCard
-          title="Recent Transactions"
-          value={recentTransactionsCount}
-          icon={<RefreshCw className="h-5 w-5" />}
-          trend={{ value: "last 30 days", positive: true }}
-          linkHref="/transactions"
-          linkText="View All Transactions"
-        />
-      </div>
+        <motion.div variants={itemVariants} custom={3}>
+          <SummaryCard
+            title="Recent Transactions"
+            value={recentTransactionsCount}
+            icon={<RefreshCw className="h-5 w-5" />}
+            trend={{ value: "last 30 days", positive: true }}
+            linkHref="/transactions"
+            linkText="View All Transactions"
+          />
+        </motion.div>
+      </motion.div>
       
-      <div className="mt-8">
+      <motion.div 
+        className="mt-8"
+        initial="hidden"
+        animate="visible"
+        variants={tableVariants}
+      >
         <TransactionTable 
           transactions={transactionsData || []}
           showViewAll
           onViewAll={() => window.location.href = "/transactions"}
         />
-      </div>
+      </motion.div>
     </AppLayout>
   );
 }

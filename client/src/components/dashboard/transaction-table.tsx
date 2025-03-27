@@ -14,6 +14,7 @@ import {
   Coins,
 } from "lucide-react";
 import { format } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
 
 export type TransactionType = "deposit" | "withdrawal" | "loan_repayment";
 
@@ -106,21 +107,105 @@ export function TransactionTable({
     }
   };
 
+  // Define animation variants
+  const headerVariants = {
+    hidden: { opacity: 0, y: -20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        type: "spring", 
+        stiffness: 300, 
+        damping: 24
+      }
+    }
+  };
+
+  const tableVariants = {
+    hidden: { opacity: 0 },
+    visible: { 
+      opacity: 1,
+      transition: { 
+        staggerChildren: 0.05,
+        delayChildren: 0.2
+      }
+    }
+  };
+
+  const rowVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        type: "spring", 
+        stiffness: 200, 
+        damping: 18 
+      }
+    },
+    hover: { 
+      scale: 1.01,
+      backgroundColor: "rgba(249, 250, 251, 0.5)",
+      transition: { 
+        type: "spring", 
+        stiffness: 300, 
+        damping: 20 
+      }
+    }
+  };
+
+  const iconVariants = {
+    hidden: { scale: 0.8, opacity: 0 },
+    visible: { 
+      scale: 1, 
+      opacity: 1,
+      transition: { 
+        type: "spring", 
+        stiffness: 500, 
+        damping: 15 
+      }
+    },
+    hover: { 
+      scale: 1.1,
+      rotate: [0, -5, 5, -5, 0],
+      transition: { 
+        duration: 0.5,
+        ease: "easeInOut"
+      }
+    }
+  };
+  
   return (
     <div>
       {showViewAll && (
-        <div className="flex items-center justify-between mb-4">
+        <motion.div 
+          className="flex items-center justify-between mb-4"
+          initial="hidden"
+          animate="visible"
+          variants={headerVariants}
+        >
           <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
-          <button
+          <motion.button
             onClick={onViewAll}
             className="text-sm text-primary hover:text-primary-700 font-medium"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
             View All
-          </button>
-        </div>
+          </motion.button>
+        </motion.div>
       )}
       
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <motion.div 
+        className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{
+          type: "spring",
+          stiffness: 200,
+          damping: 20
+        }}
+      >
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -131,40 +216,72 @@ export function TransactionTable({
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {transactions.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={4} className="text-center py-6 text-gray-500">
-                    No transactions found
-                  </TableCell>
-                </TableRow>
-              ) : (
-                transactions.map((transaction) => (
-                  <TableRow key={transaction.id}>
-                    <TableCell>
-                      <div className="flex items-center">
-                        {getTransactionIcon(transaction.type)}
-                        <span className="text-sm font-medium text-gray-900">
-                          {getTransactionLabel(transaction.type)}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell className="text-sm text-gray-500">
-                      {format(transaction.date, "MMM dd, yyyy")}
-                    </TableCell>
-                    <TableCell className="font-mono text-sm font-medium">
-                      {getAmountDisplay(transaction.type, transaction.amount)}
-                    </TableCell>
-                    <TableCell>
-                      {getStatusBadge(transaction.status)}
+            <AnimatePresence>
+              <motion.tbody
+                variants={tableVariants}
+                initial="hidden"
+                animate="visible"
+              >
+                {transactions.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="text-center py-6 text-gray-500">
+                      No transactions found
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
+                ) : (
+                  transactions.map((transaction, index) => (
+                    <motion.tr 
+                      key={transaction.id}
+                      className="border-b transition-colors hover:bg-gray-50"
+                      variants={rowVariants}
+                      custom={index}
+                      whileHover="hover"
+                      initial="hidden"
+                      animate="visible"
+                      exit={{ opacity: 0, x: -50 }}
+                    >
+                      <TableCell>
+                        <div className="flex items-center">
+                          <motion.div
+                            variants={iconVariants}
+                            whileHover="hover"
+                          >
+                            {getTransactionIcon(transaction.type)}
+                          </motion.div>
+                          <span className="text-sm font-medium text-gray-900">
+                            {getTransactionLabel(transaction.type)}
+                          </span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-sm text-gray-500">
+                        {format(transaction.date, "MMM dd, yyyy")}
+                      </TableCell>
+                      <TableCell className="font-mono text-sm font-medium">
+                        <motion.span 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ delay: 0.3 + (index * 0.05) }}
+                        >
+                          {getAmountDisplay(transaction.type, transaction.amount)}
+                        </motion.span>
+                      </TableCell>
+                      <TableCell>
+                        <motion.div
+                          initial={{ scale: 0.9, opacity: 0 }}
+                          animate={{ scale: 1, opacity: 1 }}
+                          transition={{ delay: 0.4 + (index * 0.05) }}
+                        >
+                          {getStatusBadge(transaction.status)}
+                        </motion.div>
+                      </TableCell>
+                    </motion.tr>
+                  ))
+                )}
+              </motion.tbody>
+            </AnimatePresence>
           </Table>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
