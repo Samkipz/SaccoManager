@@ -33,13 +33,12 @@ interface WithdrawalWithUser extends Withdrawal {
   };
 }
 
-// Define DataTableColumn interface for proper typing
+// Define DataTableColumn interface to match the one in data-table.tsx
 interface DataTableColumn<T> {
   header: string;
-  accessorKey?: keyof T | ((row: T) => any);
-  cell?: (info: any) => React.ReactNode;
+  accessorKey: keyof T | ((row: T) => any);
+  cell?: (row: T) => React.ReactNode;
   sortable?: boolean;
-  id?: string;
 }
 
 export default function WithdrawalApprovalsPage() {
@@ -124,47 +123,36 @@ export default function WithdrawalApprovalsPage() {
     {
       header: "Member",
       accessorKey: (row: WithdrawalWithUser) => row.user?.name || "Unknown Member",
-      cell: (info: any) => info.getValue(),
+      cell: (row: WithdrawalWithUser) => row.user?.name || "Unknown Member",
     },
     {
       header: "Amount",
       accessorKey: (row: WithdrawalWithUser) => row.amount,
-      cell: (info: any) => {
-        const amount = info.getValue();
-        return `$${parseFloat(amount).toFixed(2)}`;
-      },
+      cell: (row: WithdrawalWithUser) => `$${parseFloat(row.amount.toString()).toFixed(2)}`,
     },
     {
       header: "Method",
       accessorKey: (row: WithdrawalWithUser) => row.method,
-      cell: (info: any) => {
-        const method = info.getValue();
-        return method.charAt(0).toUpperCase() + method.slice(1);
-      },
+      cell: (row: WithdrawalWithUser) => row.method.charAt(0).toUpperCase() + row.method.slice(1),
     },
     {
       header: "Date Requested",
       accessorKey: (row: WithdrawalWithUser) => format(new Date(row.createdAt), "MMM dd, yyyy • h:mm a"),
-      cell: (info: any) => info.getValue(),
+      cell: (row: WithdrawalWithUser) => format(new Date(row.createdAt), "MMM dd, yyyy • h:mm a"),
     },
     {
       header: "Status",
       accessorKey: (row: WithdrawalWithUser) => row.status,
-      cell: (info: any) => {
-        const status = info.getValue();
-        return (
-          <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100">
-            {status}
-          </Badge>
-        );
-      },
+      cell: (row: WithdrawalWithUser) => (
+        <Badge variant="outline" className="bg-amber-100 text-amber-800 hover:bg-amber-100">
+          {row.status}
+        </Badge>
+      ),
     },
     {
       header: "Actions",
       accessorKey: (row: WithdrawalWithUser) => row.id.toString(),
-      id: "actions",
-      cell: (info: any) => {
-        const withdrawal = info.row.original as WithdrawalWithUser;
+      cell: (row: WithdrawalWithUser) => {
         return (
           <div className="flex space-x-2">
             <Button 
@@ -172,7 +160,7 @@ export default function WithdrawalApprovalsPage() {
               variant="outline" 
               className="bg-green-50 text-green-600 hover:bg-green-100 border-green-200"
               onClick={() => {
-                setSelectedWithdrawal(withdrawal);
+                setSelectedWithdrawal(row);
                 setOpenApproveDialog(true);
               }}
             >
@@ -184,7 +172,7 @@ export default function WithdrawalApprovalsPage() {
               variant="outline" 
               className="bg-red-50 text-red-600 hover:bg-red-100 border-red-200"
               onClick={() => {
-                setSelectedWithdrawal(withdrawal);
+                setSelectedWithdrawal(row);
                 setOpenRejectDialog(true);
               }}
             >
