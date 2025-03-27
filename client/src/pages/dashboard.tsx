@@ -6,6 +6,7 @@ import {
   TransactionTable, 
   Transaction 
 } from "@/components/dashboard/transaction-table";
+import { FinancialTipsButton } from "@/components/dashboard/financial-tips-button";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
@@ -101,6 +102,13 @@ export default function DashboardPage() {
       title="Dashboard" 
       description={`Welcome back, ${user?.name}`}
     >
+      <div className="flex justify-between items-center mb-6">
+        <div className="text-sm text-muted-foreground">
+          Last updated: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}
+        </div>
+        <FinancialTipsButton />
+      </div>
+      
       <motion.div 
         className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5"
         initial="hidden"
