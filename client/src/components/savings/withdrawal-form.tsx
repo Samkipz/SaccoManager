@@ -65,9 +65,9 @@ export function WithdrawalForm({
   const isSubmitting = form.formState.isSubmitting;
 
   async function onSubmit(values: WithdrawalFormValues) {
-    const amount = parseFloat(values.amount);
+    const amountNumber = parseFloat(values.amount);
     
-    if (amount > availableBalance) {
+    if (amountNumber > availableBalance) {
       form.setError("amount", {
         type: "manual",
         message: "Withdrawal amount exceeds available balance",
@@ -78,7 +78,7 @@ export function WithdrawalForm({
     try {
       const withdrawalData = {
         savingsId,
-        amount,
+        amount: values.amount, // Keep amount as string for database compatibility
         method: values.method,
         reason: values.reason || undefined,
       };

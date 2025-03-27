@@ -69,9 +69,9 @@ export function LoanApplicationForm({
   const isSubmitting = form.formState.isSubmitting;
 
   async function onSubmit(values: LoanApplicationValues) {
-    const amount = parseFloat(values.amount);
+    const amountNumber = parseFloat(values.amount);
     
-    if (amount > maxEligibleAmount) {
+    if (amountNumber > maxEligibleAmount) {
       form.setError("amount", {
         type: "manual",
         message: "Loan amount exceeds your eligible amount",
@@ -82,7 +82,7 @@ export function LoanApplicationForm({
     try {
       const loanData = {
         userId,
-        amount,
+        amount: values.amount, // Keep as string for database compatibility
         purpose: values.purpose,
         term: parseInt(values.term, 10),
         description: values.description || undefined,

@@ -62,7 +62,7 @@ export function DepositForm({ savingsId, onClose, onSuccess }: DepositFormProps)
     try {
       const depositData = {
         savingsId,
-        amount: parseFloat(values.amount),
+        amount: values.amount, // Send the amount as a string, server will handle conversion
         method: values.method,
         notes: values.notes || undefined,
       };
