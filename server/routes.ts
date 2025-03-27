@@ -200,6 +200,54 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get deposits by savings ID
+  app.get("/api/savings/:id/deposits", authenticateUser, async (req, res) => {
+    try {
+      const savingsId = parseInt(req.params.id);
+      
+      // Get the savings account to check permissions
+      const savings = await storage.getSavings(savingsId);
+      if (!savings) {
+        return res.status(404).json({ message: "Savings account not found" });
+      }
+      
+      // Check if user is owner or admin
+      if (req.user.id !== savings.userId && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const deposits = await storage.getDepositsBySavingsId(savingsId);
+      return res.status(200).json(deposits);
+    } catch (error) {
+      console.error("Get deposits error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Get withdrawals by savings ID
+  app.get("/api/savings/:id/withdrawals", authenticateUser, async (req, res) => {
+    try {
+      const savingsId = parseInt(req.params.id);
+      
+      // Get the savings account to check permissions
+      const savings = await storage.getSavings(savingsId);
+      if (!savings) {
+        return res.status(404).json({ message: "Savings account not found" });
+      }
+      
+      // Check if user is owner or admin
+      if (req.user.id !== savings.userId && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const withdrawals = await storage.getWithdrawalsBySavingsId(savingsId);
+      return res.status(200).json(withdrawals);
+    } catch (error) {
+      console.error("Get withdrawals error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
   // Savings Routes
   app.get("/api/savings/:userId", authenticateUser, async (req, res) => {
     try {
@@ -400,6 +448,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get repayments for a loan
+  app.get("/api/loans/:id/repayments", authenticateUser, async (req, res) => {
+    try {
+      const loanId = parseInt(req.params.id);
+      
+      // Get the loan to check permissions
+      const loan = await storage.getLoan(loanId);
+      if (!loan) {
+        return res.status(404).json({ message: "Loan not found" });
+      }
+      
+      // Check if user is owner or admin
+      if (req.user.id !== loan.userId && req.user.role !== "ADMIN") {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      const repayments = await storage.getRepaymentsByLoanId(loanId);
+      return res.status(200).json(repayments);
+    } catch (error) {
+      console.error("Get repayments error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
   // Loan Routes
   app.get("/api/loans/user/:userId", authenticateUser, async (req, res) => {
     try {

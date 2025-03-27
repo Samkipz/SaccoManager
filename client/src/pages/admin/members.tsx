@@ -27,7 +27,8 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Pencil, Trash2, UserPlus } from "lucide-react";
+import { Pencil, Trash2, UserPlus, User as UserIcon } from "lucide-react";
+import { Link } from "wouter";
 
 // Define the interface for DataTable columns
 interface DataTableColumn<T> {
@@ -237,6 +238,16 @@ export default function MembersPage() {
       accessorKey: "id",
       cell: (row: User) => (
         <div className="flex space-x-2">
+          <Link href={`/admin/members/${row.id}`}>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              className="bg-primary-50 text-primary hover:bg-primary-100 border-primary-200"
+            >
+              <UserIcon className="h-4 w-4 mr-1" />
+              View
+            </Button>
+          </Link>
           <Button 
             size="sm" 
             variant="outline" 

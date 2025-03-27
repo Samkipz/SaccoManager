@@ -9,6 +9,7 @@ import SavingsPage from "@/pages/savings";
 import LoansPage from "@/pages/loans";
 import TransactionsPage from "@/pages/transactions";
 import MembersPage from "@/pages/admin/members";
+import MemberDetailsPage from "@/pages/admin/member-details";
 import LoanApprovalsPage from "@/pages/admin/loan-approvals";
 import WithdrawalApprovalsPage from "@/pages/admin/withdrawal-approvals";
 import ReportsPage from "@/pages/admin/reports";
@@ -30,6 +31,7 @@ function Router() {
       
       {/* Admin routes */}
       <Route path="/admin/members" component={MembersPage} />
+      <Route path="/admin/members/:id" component={MemberDetailsPage} />
       <Route path="/admin/loan-approvals" component={LoanApprovalsPage} />
       <Route path="/admin/withdrawal-approvals" component={WithdrawalApprovalsPage} />
       <Route path="/admin/reports" component={ReportsPage} />
