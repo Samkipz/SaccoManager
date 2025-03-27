@@ -34,6 +34,7 @@ export interface IStorage {
   getWithdrawalsBySavingsId(savingsId: number): Promise<Withdrawal[]>;
   createWithdrawal(withdrawal: InsertWithdrawal): Promise<Withdrawal>;
   updateWithdrawalStatus(id: number, status: "PENDING" | "APPROVED" | "REJECTED"): Promise<Withdrawal>;
+  getPendingWithdrawals(): Promise<Withdrawal[]>;
 
   // Loan operations
   getLoan(id: number): Promise<Loan | undefined>;
@@ -161,6 +162,14 @@ export class DatabaseStorage implements IStorage {
     }
     
     return updatedWithdrawal;
+  }
+  
+  async getPendingWithdrawals(): Promise<Withdrawal[]> {
+    return db
+      .select()
+      .from(withdrawals)
+      .where(eq(withdrawals.status, "PENDING"))
+      .orderBy(desc(withdrawals.createdAt));
   }
 
   // Loan operations

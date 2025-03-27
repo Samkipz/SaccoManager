@@ -73,6 +73,11 @@ export function Sidebar({ className }: SidebarProps) {
       icon: <CheckSquare className="mr-3 text-lg" />,
     },
     {
+      title: "Withdrawal Approvals",
+      href: "/admin/withdrawal-approvals",
+      icon: <DollarSign className="mr-3 text-lg" />,
+    },
+    {
       title: "Reports",
       href: "/admin/reports",
       icon: <FileLineChart className="mr-3 text-lg" />,

@@ -277,6 +277,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all pending withdrawals for admin review
+  app.get("/api/savings/withdrawals/pending", authenticateUser, ensureAdmin, async (req, res) => {
+    try {
+      const pendingWithdrawals = await storage.getPendingWithdrawals();
+      
+      // For each withdrawal, add user and savings info
+      const withdrawalsWithInfo = await Promise.all(
+        pendingWithdrawals.map(async (withdrawal) => {
+          const savings = await storage.getSavings(withdrawal.savingsId);
+          let user;
+          if (savings) {
+            user = await storage.getUser(savings.userId);
+          }
+          
+          return {
+            ...withdrawal,
+            user: user ? { id: user.id, name: user.name, email: user.email } : undefined,
+            savings: savings ? { id: savings.id, balance: savings.balance } : undefined,
+          };
+        })
+      );
+      
+      return res.json(withdrawalsWithInfo);
+    } catch (error) {
+      console.error("Get pending withdrawals error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // Admin endpoints for withdrawal approval/rejection
   app.post("/api/savings/withdrawal/:id/approve", authenticateUser, ensureAdmin, async (req, res) => {
     try {
