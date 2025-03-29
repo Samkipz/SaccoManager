@@ -7,7 +7,7 @@ import { z } from "zod";
 import { 
   insertUserSchema, userLoginSchema, insertDepositSchema, 
   insertWithdrawalSchema, insertLoanSchema, insertBudgetCategorySchema,
-  insertBudgetRecommendationSchema
+  insertBudgetRecommendationSchema, insertSavingsProductSchema, insertLoanProductSchema
 } from "@shared/schema";
 
 // JWT Secret
@@ -98,9 +98,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: "MEMBER"
       });
 
-      // Create savings account for the user
+      // Get default savings product (Regular Savings)
+      const savingsProducts = await storage.getActiveSavingsProducts();
+      const defaultProduct = savingsProducts.find(p => p.type === "REGULAR") || savingsProducts[0];
+
+      // Create savings account for the user with the default product
       await storage.createSavings({
         userId: user.id,
+        productId: defaultProduct?.id,
         balance: "0"
       });
 
@@ -476,6 +481,258 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Savings Product Routes
+  app.get("/api/savings-products", authenticateUser, async (req, res) => {
+    try {
+      // Regular members can only see active products, admins can see all
+      const products = req.user.role === "ADMIN" 
+        ? await storage.getAllSavingsProducts()
+        : await storage.getActiveSavingsProducts();
+        
+      return res.status(200).json(products);
+    } catch (error) {
+      console.error("Get savings products error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.get("/api/savings-products/:id", authenticateUser, async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      const product = await storage.getSavingsProduct(productId);
+      
+      if (!product) {
+        return res.status(404).json({ message: "Savings product not found" });
+      }
+      
+      // Regular members can only see active products
+      if (req.user.role !== "ADMIN" && !product.isActive) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      return res.status(200).json(product);
+    } catch (error) {
+      console.error("Get savings product error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Only admins can create and update savings products
+  app.post("/api/savings-products", authenticateUser, ensureAdmin, async (req, res) => {
+    try {
+      const validationResult = insertSavingsProductSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Invalid input", errors: validationResult.error.errors });
+      }
+      
+      const productData = validationResult.data;
+      const product = await storage.createSavingsProduct({
+        ...productData,
+        isActive: true // New products are active by default
+      });
+      
+      return res.status(201).json(product);
+    } catch (error) {
+      console.error("Create savings product error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.patch("/api/savings-products/:id", authenticateUser, ensureAdmin, async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      
+      // Check if product exists
+      const existingProduct = await storage.getSavingsProduct(productId);
+      if (!existingProduct) {
+        return res.status(404).json({ message: "Savings product not found" });
+      }
+      
+      // Validate the update data
+      const validationResult = insertSavingsProductSchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Invalid input", errors: validationResult.error.errors });
+      }
+      
+      const updateData = validationResult.data;
+      const updatedProduct = await storage.updateSavingsProduct(productId, updateData);
+      
+      return res.status(200).json(updatedProduct);
+    } catch (error) {
+      console.error("Update savings product error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Toggle savings product active status
+  app.post("/api/savings-products/:id/toggle-status", authenticateUser, ensureAdmin, async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      
+      // Check if product exists
+      const existingProduct = await storage.getSavingsProduct(productId);
+      if (!existingProduct) {
+        return res.status(404).json({ message: "Savings product not found" });
+      }
+      
+      // Toggle the active status
+      const updatedProduct = await storage.updateSavingsProduct(productId, {
+        isActive: !existingProduct.isActive
+      });
+      
+      return res.status(200).json(updatedProduct);
+    } catch (error) {
+      console.error("Toggle savings product status error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Get savings products by type
+  app.get("/api/savings-products/type/:type", authenticateUser, async (req, res) => {
+    try {
+      const type = req.params.type;
+      
+      // Get products by type
+      const products = await storage.getSavingsProductByType(type);
+      
+      // Filter inactive products for regular members
+      const filteredProducts = req.user.role === "ADMIN" 
+        ? products 
+        : products.filter(product => product.isActive);
+        
+      return res.status(200).json(filteredProducts);
+    } catch (error) {
+      console.error("Get savings products by type error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Loan Product Routes
+  app.get("/api/loan-products", authenticateUser, async (req, res) => {
+    try {
+      // Regular members can only see active products, admins can see all
+      const products = req.user.role === "ADMIN" 
+        ? await storage.getAllLoanProducts()
+        : await storage.getActiveLoanProducts();
+        
+      return res.status(200).json(products);
+    } catch (error) {
+      console.error("Get loan products error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.get("/api/loan-products/:id", authenticateUser, async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      const product = await storage.getLoanProduct(productId);
+      
+      if (!product) {
+        return res.status(404).json({ message: "Loan product not found" });
+      }
+      
+      // Regular members can only see active products
+      if (req.user.role !== "ADMIN" && !product.isActive) {
+        return res.status(403).json({ message: "Not authorized" });
+      }
+      
+      return res.status(200).json(product);
+    } catch (error) {
+      console.error("Get loan product error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Only admins can create and update loan products
+  app.post("/api/loan-products", authenticateUser, ensureAdmin, async (req, res) => {
+    try {
+      const validationResult = insertLoanProductSchema.safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Invalid input", errors: validationResult.error.errors });
+      }
+      
+      const productData = validationResult.data;
+      const product = await storage.createLoanProduct({
+        ...productData,
+        isActive: true // New products are active by default
+      });
+      
+      return res.status(201).json(product);
+    } catch (error) {
+      console.error("Create loan product error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  app.patch("/api/loan-products/:id", authenticateUser, ensureAdmin, async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      
+      // Check if product exists
+      const existingProduct = await storage.getLoanProduct(productId);
+      if (!existingProduct) {
+        return res.status(404).json({ message: "Loan product not found" });
+      }
+      
+      // Validate the update data
+      const validationResult = insertLoanProductSchema.partial().safeParse(req.body);
+      if (!validationResult.success) {
+        return res.status(400).json({ message: "Invalid input", errors: validationResult.error.errors });
+      }
+      
+      const updateData = validationResult.data;
+      const updatedProduct = await storage.updateLoanProduct(productId, updateData);
+      
+      return res.status(200).json(updatedProduct);
+    } catch (error) {
+      console.error("Update loan product error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Toggle loan product active status
+  app.post("/api/loan-products/:id/toggle-status", authenticateUser, ensureAdmin, async (req, res) => {
+    try {
+      const productId = parseInt(req.params.id);
+      
+      // Check if product exists
+      const existingProduct = await storage.getLoanProduct(productId);
+      if (!existingProduct) {
+        return res.status(404).json({ message: "Loan product not found" });
+      }
+      
+      // Toggle the active status
+      const updatedProduct = await storage.updateLoanProduct(productId, {
+        isActive: !existingProduct.isActive
+      });
+      
+      return res.status(200).json(updatedProduct);
+    } catch (error) {
+      console.error("Toggle loan product status error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Get loan products by type
+  app.get("/api/loan-products/type/:type", authenticateUser, async (req, res) => {
+    try {
+      const type = req.params.type;
+      
+      // Get products by type
+      const products = await storage.getLoanProductByType(type);
+      
+      // Filter inactive products for regular members
+      const filteredProducts = req.user.role === "ADMIN" 
+        ? products 
+        : products.filter(product => product.isActive);
+        
+      return res.status(200).json(filteredProducts);
+    } catch (error) {
+      console.error("Get loan products by type error:", error);
+      return res.status(500).json({ message: "Server error" });
+    }
+  });
+  
   // Loan Routes
   app.get("/api/loans/user/:userId", authenticateUser, async (req, res) => {
     try {
@@ -510,19 +767,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid input", errors: validationResult.error.errors });
       }
 
-      const { userId, amount, purpose, term, description } = validationResult.data;
+      const { userId, productId, amount, purpose, term, description } = validationResult.data;
       
       // Check if user is applying for own loan or is admin
       if (userId !== req.user.id && req.user.role !== "ADMIN") {
         return res.status(403).json({ message: "Not authorized" });
       }
       
+      // Get loan product if provided
+      let interestRate: string | undefined;
+      
+      if (productId) {
+        const loanProduct = await storage.getLoanProduct(productId);
+        if (!loanProduct) {
+          return res.status(404).json({ message: "Loan product not found" });
+        }
+        
+        // Check if product is active
+        if (!loanProduct.isActive) {
+          return res.status(400).json({ message: "Selected loan product is not available" });
+        }
+        
+        // Validate loan amount is within product limits
+        if (parseFloat(amount.toString()) > parseFloat(loanProduct.maxAmount)) {
+          return res.status(400).json({ 
+            message: `Loan amount exceeds maximum allowed (${loanProduct.maxAmount})` 
+          });
+        }
+        
+        // Validate loan term is within product limits
+        if (term > loanProduct.maxTerm) {
+          return res.status(400).json({ 
+            message: `Loan term exceeds maximum allowed (${loanProduct.maxTerm} months)` 
+          });
+        }
+        
+        // Check if user has minimum required savings
+        if (loanProduct.minSavingsPercentage) {
+          const savings = await storage.getSavingsByUserId(userId);
+          if (!savings || parseFloat(savings.balance) < parseFloat(amount.toString()) * (parseFloat(loanProduct.minSavingsPercentage) / 100)) {
+            return res.status(400).json({ 
+              message: `You need at least ${loanProduct.minSavingsPercentage}% of the loan amount in savings` 
+            });
+          }
+        }
+        
+        interestRate = loanProduct.interestRate;
+      }
+      
       // Create loan application (pending status by default in schema)
       const loan = await storage.createLoan({
         userId,
+        productId,
         amount: amount.toString(),
         purpose,
         term,
+        interestRate,
         description
       });
       
@@ -891,9 +1191,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         role: role || "MEMBER" // Default to MEMBER if not specified
       });
 
-      // Create savings account for the user
+      // Get default savings product (Regular Savings)
+      const savingsProducts = await storage.getActiveSavingsProducts();
+      const defaultProduct = savingsProducts.find(p => p.type === "REGULAR") || savingsProducts[0];
+
+      // Create savings account for the user with the default product
       await storage.createSavings({
         userId: user.id,
+        productId: defaultProduct?.id,
         balance: "0"
       });
 

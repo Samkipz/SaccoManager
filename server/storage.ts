@@ -1,13 +1,16 @@
 import { 
   User, InsertUser, 
-  Savings, InsertSavings, 
+  Savings, InsertSavings, SavingsWithTransactions,
   Deposit, InsertDeposit, 
   Withdrawal, InsertWithdrawal, 
-  Loan, InsertLoan, 
+  SavingsProduct, InsertSavingsProduct, SavingsProductWithSavings,
+  LoanProduct, InsertLoanProduct, LoanProductWithLoans,
+  Loan, InsertLoan, LoanWithRepayments,
   Repayment, InsertRepayment,
   BudgetCategory, InsertBudgetCategory,
   BudgetRecommendation, InsertBudgetRecommendation,
-  users, savings, deposits, withdrawals, loans, repayments,
+  users, savings, deposits, withdrawals, 
+  savingsProducts, loanProducts, loans, repayments,
   budgetCategories, budgetRecommendations
 } from "@shared/schema";
 import { db } from "./db";
@@ -22,12 +25,21 @@ export interface IStorage {
   deleteUser(id: number): Promise<void>;
   getAllUsers(): Promise<User[]>;
 
+  // Savings Product operations
+  getSavingsProduct(id: number): Promise<SavingsProduct | undefined>;
+  getSavingsProductByType(type: string): Promise<SavingsProduct[]>;
+  createSavingsProduct(product: InsertSavingsProduct): Promise<SavingsProduct>;
+  updateSavingsProduct(id: number, data: Partial<InsertSavingsProduct>): Promise<SavingsProduct>;
+  getAllSavingsProducts(): Promise<SavingsProduct[]>;
+  getActiveSavingsProducts(): Promise<SavingsProduct[]>;
+
   // Savings operations
   getSavings(id: number): Promise<Savings | undefined>;
   getSavingsByUserId(userId: number): Promise<Savings | undefined>;
   createSavings(savings: InsertSavings): Promise<Savings>;
   updateSavingsBalance(id: number, balance: string): Promise<Savings>;
   getAllSavings(): Promise<Savings[]>;
+  getSavingsWithProduct(id: number): Promise<SavingsWithTransactions | undefined>;
 
   // Deposit operations
   getDeposit(id: number): Promise<Deposit | undefined>;
@@ -41,6 +53,14 @@ export interface IStorage {
   updateWithdrawalStatus(id: number, status: "PENDING" | "APPROVED" | "REJECTED"): Promise<Withdrawal>;
   getPendingWithdrawals(): Promise<Withdrawal[]>;
 
+  // Loan Product operations
+  getLoanProduct(id: number): Promise<LoanProduct | undefined>;
+  getLoanProductByType(type: string): Promise<LoanProduct[]>;
+  createLoanProduct(product: InsertLoanProduct): Promise<LoanProduct>;
+  updateLoanProduct(id: number, data: Partial<InsertLoanProduct>): Promise<LoanProduct>;
+  getAllLoanProducts(): Promise<LoanProduct[]>;
+  getActiveLoanProducts(): Promise<LoanProduct[]>;
+
   // Loan operations
   getLoan(id: number): Promise<Loan | undefined>;
   getLoansByUserId(userId: number): Promise<Loan[]>;
@@ -48,6 +68,7 @@ export interface IStorage {
   updateLoanStatus(id: number, status: "PENDING" | "APPROVED" | "REJECTED"): Promise<Loan>;
   getPendingLoans(): Promise<Loan[]>;
   getAllLoans(): Promise<Loan[]>;
+  getLoanWithProduct(id: number): Promise<LoanWithRepayments | undefined>;
 
   // Repayment operations
   getRepayment(id: number): Promise<Repayment | undefined>;
@@ -68,6 +89,9 @@ export interface IStorage {
   updateBudgetRecommendationStatus(id: number, isImplemented: boolean): Promise<BudgetRecommendation>;
   deleteBudgetRecommendation(id: number): Promise<void>;
   generateBudgetRecommendations(userId: number): Promise<BudgetRecommendation[]>;
+  
+  // Seed initial data
+  seedInitialData(force?: boolean): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -183,6 +207,73 @@ export class DatabaseStorage implements IStorage {
   async getAllSavings(): Promise<Savings[]> {
     return db.select().from(savings);
   }
+  
+  async getSavingsWithProduct(id: number): Promise<SavingsWithTransactions | undefined> {
+    const savings = await this.getSavings(id);
+    if (!savings) {
+      return undefined;
+    }
+    
+    const deposits = await this.getDepositsBySavingsId(id);
+    const withdrawals = await this.getWithdrawalsBySavingsId(id);
+    
+    let product: SavingsProduct | undefined;
+    if (savings.productId) {
+      product = await this.getSavingsProduct(savings.productId);
+    }
+    
+    return {
+      ...savings,
+      deposits,
+      withdrawals,
+      product
+    };
+  }
+  
+  // Savings Product operations
+  async getSavingsProduct(id: number): Promise<SavingsProduct | undefined> {
+    const [product] = await db.select().from(savingsProducts).where(eq(savingsProducts.id, id));
+    return product || undefined;
+  }
+  
+  async getSavingsProductByType(type: string): Promise<SavingsProduct[]> {
+    return db
+      .select()
+      .from(savingsProducts)
+      .where(eq(savingsProducts.type, type as any))
+      .orderBy(savingsProducts.name);
+  }
+  
+  async createSavingsProduct(product: InsertSavingsProduct): Promise<SavingsProduct> {
+    const [savedProduct] = await db.insert(savingsProducts).values(product).returning();
+    return savedProduct;
+  }
+  
+  async updateSavingsProduct(id: number, data: Partial<InsertSavingsProduct>): Promise<SavingsProduct> {
+    const [updatedProduct] = await db
+      .update(savingsProducts)
+      .set(data)
+      .where(eq(savingsProducts.id, id))
+      .returning();
+    
+    if (!updatedProduct) {
+      throw new Error("Savings product not found");
+    }
+    
+    return updatedProduct;
+  }
+  
+  async getAllSavingsProducts(): Promise<SavingsProduct[]> {
+    return db.select().from(savingsProducts).orderBy(savingsProducts.name);
+  }
+  
+  async getActiveSavingsProducts(): Promise<SavingsProduct[]> {
+    return db
+      .select()
+      .from(savingsProducts)
+      .where(eq(savingsProducts.isActive, true))
+      .orderBy(savingsProducts.name);
+  }
 
   // Deposit operations
   async getDeposit(id: number): Promise<Deposit | undefined> {
@@ -295,6 +386,73 @@ export class DatabaseStorage implements IStorage {
 
   async getAllLoans(): Promise<Loan[]> {
     return db.select().from(loans).orderBy(desc(loans.createdAt));
+  }
+  
+  async getLoanWithProduct(id: number): Promise<LoanWithRepayments | undefined> {
+    const loan = await this.getLoan(id);
+    if (!loan) {
+      return undefined;
+    }
+    
+    const repayments = await this.getRepaymentsByLoanId(id);
+    const user = await this.getUser(loan.userId);
+    
+    let product: LoanProduct | undefined;
+    if (loan.productId) {
+      product = await this.getLoanProduct(loan.productId);
+    }
+    
+    return {
+      ...loan,
+      repayments,
+      user,
+      product
+    };
+  }
+  
+  // Loan Product operations
+  async getLoanProduct(id: number): Promise<LoanProduct | undefined> {
+    const [product] = await db.select().from(loanProducts).where(eq(loanProducts.id, id));
+    return product || undefined;
+  }
+  
+  async getLoanProductByType(type: string): Promise<LoanProduct[]> {
+    return db
+      .select()
+      .from(loanProducts)
+      .where(eq(loanProducts.type, type as any))
+      .orderBy(loanProducts.name);
+  }
+  
+  async createLoanProduct(product: InsertLoanProduct): Promise<LoanProduct> {
+    const [savedProduct] = await db.insert(loanProducts).values(product).returning();
+    return savedProduct;
+  }
+  
+  async updateLoanProduct(id: number, data: Partial<InsertLoanProduct>): Promise<LoanProduct> {
+    const [updatedProduct] = await db
+      .update(loanProducts)
+      .set(data)
+      .where(eq(loanProducts.id, id))
+      .returning();
+    
+    if (!updatedProduct) {
+      throw new Error("Loan product not found");
+    }
+    
+    return updatedProduct;
+  }
+  
+  async getAllLoanProducts(): Promise<LoanProduct[]> {
+    return db.select().from(loanProducts).orderBy(loanProducts.name);
+  }
+  
+  async getActiveLoanProducts(): Promise<LoanProduct[]> {
+    return db
+      .select()
+      .from(loanProducts)
+      .where(eq(loanProducts.isActive, true))
+      .orderBy(loanProducts.name);
   }
 
   // Repayment operations
@@ -477,11 +635,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Seed data for initial database setup
-  async seedInitialData(): Promise<void> {
+  async seedInitialData(force: boolean = false): Promise<void> {
     // Check if admin user exists
     const adminExists = await this.getUserByEmail("admin@sacco.com");
     
-    if (!adminExists) {
+    // If force is true, we need to clear existing data first
+    if (force) {
+      console.log("Force option enabled - clearing existing data...");
+      
+      // Delete data in the correct order to respect foreign key constraints
+      await db.delete(budgetRecommendations);
+      await db.delete(budgetCategories);
+      await db.delete(repayments);
+      await db.delete(loans);
+      await db.delete(withdrawals);
+      await db.delete(deposits);
+      await db.delete(savings);
+      await db.delete(loanProducts);
+      await db.delete(savingsProducts);
+      await db.delete(users);
+      
+      console.log("All existing data cleared");
+    }
+    
+    if (!adminExists || force) {
       // Create admin user
       const admin = await this.createUser({
         name: "Admin User",
@@ -502,9 +679,89 @@ export class DatabaseStorage implements IStorage {
       
       console.log("Created member:", member.name);
       
-      // Create savings account
+      // Create savings products
+      const regularSavings = await this.createSavingsProduct({
+        name: "Regular Savings",
+        type: "REGULAR",
+        interestRate: "3.50",
+        minBalance: "500.00",
+        description: "Standard savings account with competitive interest rates"
+      });
+      
+      const fixedDeposit = await this.createSavingsProduct({
+        name: "Fixed Deposit",
+        type: "FIXED_DEPOSIT",
+        interestRate: "7.25", 
+        minBalance: "5000.00",
+        termMonths: 12,
+        description: "Higher interest rate for a fixed term commitment"
+      });
+      
+      const educationSavings = await this.createSavingsProduct({
+        name: "Education Savings",
+        type: "EDUCATION",
+        interestRate: "5.00",
+        minBalance: "1000.00",
+        description: "Save for your children's education with special benefits"
+      });
+      
+      const emergencySavings = await this.createSavingsProduct({
+        name: "Emergency Fund",
+        type: "EMERGENCY",
+        interestRate: "3.75",
+        minBalance: "1000.00", 
+        description: "Quick access savings for unexpected expenses"
+      });
+      
+      console.log("Created savings products");
+      
+      // Create loan products
+      const personalLoan = await this.createLoanProduct({
+        name: "Personal Loan",
+        type: "PERSONAL",
+        interestRate: "12.50",
+        maxAmount: "25000.00",
+        maxTerm: 36,
+        minSavingsPercentage: "10.00",
+        description: "Flexible loan for personal use"
+      });
+      
+      const businessLoan = await this.createLoanProduct({
+        name: "Business Development Loan",
+        type: "BUSINESS",
+        interestRate: "10.75",
+        maxAmount: "100000.00",
+        maxTerm: 60,
+        minSavingsPercentage: "15.00",
+        description: "Grow your business with affordable financing"
+      });
+      
+      const educationLoan = await this.createLoanProduct({
+        name: "Education Loan",
+        type: "EDUCATION",
+        interestRate: "8.50",
+        maxAmount: "50000.00",
+        maxTerm: 72,
+        minSavingsPercentage: "5.00",
+        description: "Invest in your future with our education financing options"
+      });
+      
+      const emergencyLoan = await this.createLoanProduct({
+        name: "Emergency Loan",
+        type: "EMERGENCY",
+        interestRate: "9.75",
+        maxAmount: "15000.00",
+        maxTerm: 24,
+        minSavingsPercentage: "5.00",
+        description: "Quick access to funds for urgent needs"
+      });
+      
+      console.log("Created loan products");
+      
+      // Create savings account with product
       const memberSavings = await this.createSavings({
         userId: member.id,
+        productId: regularSavings.id,
         balance: "2450.00"
       });
       
@@ -532,12 +789,14 @@ export class DatabaseStorage implements IStorage {
         status: "PENDING"
       }).returning();
       
-      // Add an approved loan - we need to use db.insert directly
+      // Add an approved loan with product 
       const [loan] = await db.insert(loans).values({
         userId: member.id,
+        productId: businessLoan.id,
         amount: "1200.00",
         purpose: "business",
         term: 12,
+        interestRate: businessLoan.interestRate,
         description: "Need funds to expand my small business",
         status: "APPROVED"
       }).returning();
@@ -548,12 +807,14 @@ export class DatabaseStorage implements IStorage {
         amount: "150.00"
       });
       
-      // Add pending loan - using db.insert directly
+      // Add pending loan with product
       await db.insert(loans).values({
         userId: member.id,
+        productId: educationLoan.id,
         amount: "500.00",
         purpose: "education",
         term: 6,
+        interestRate: educationLoan.interestRate,
         description: "For a short course in web development",
         status: "PENDING"
       }).returning();
