@@ -137,22 +137,9 @@ export function SavingsChart({
               Track your savings progress and distribution
             </CardDescription>
           </div>
-          <Tabs 
-            value={activeTab} 
-            onValueChange={setActiveTab} 
-            className="w-auto"
-          >
-            <TabsList>
-              <TabsTrigger value="history" className="text-xs">
-                <TrendingUp className="h-3 w-3 mr-1" />
-                Growth
-              </TabsTrigger>
-              <TabsTrigger value="distribution" className="text-xs">
-                <PieChartIcon className="h-3 w-3 mr-1" />
-                Distribution
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <div className="flex items-center">
+            <TrendingUp className="h-5 w-5 text-primary" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between mb-4">
@@ -178,94 +165,107 @@ export function SavingsChart({
             </div>
           </div>
           
-          <TabsContent value="history" className="space-y-4 mt-4">
-            <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={savingsData}
-                  margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563EB" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#2563EB" stopOpacity={0.1}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
-                  <XAxis 
-                    dataKey="date" 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <YAxis 
-                    axisLine={false}
-                    tickLine={false}
-                    tick={{ fontSize: 12 }}
-                    tickFormatter={(value) => `$${value}`}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Area 
-                    type="monotone" 
-                    dataKey="amount" 
-                    stroke="#2563EB" 
-                    strokeWidth={2}
-                    fillOpacity={1} 
-                    fill="url(#colorAmount)"
-                  />
-                  {savingsGoal && (
-                    <CartesianGrid y={savingsGoal} strokeWidth={1} strokeDasharray="3 3" stroke="#f59e0b" />
-                  )}
-                </AreaChart>
-              </ResponsiveContainer>
-              {savingsGoal && (
-                <div className="flex items-center justify-end mt-1">
-                  <div className="w-3 h-0 border-t-2 border-dashed border-amber-500" />
-                  <span className="text-xs ml-1 text-amber-600">Next Tier Goal: {formatCurrency(savingsGoal)}</span>
-                </div>
-              )}
-            </div>
-          </TabsContent>
-          
-          <TabsContent value="distribution" className="space-y-4 mt-4">
-            <div className="h-64 flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={savingsDistribution}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={renderCustomizedLabel}
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-4">
+              <TabsTrigger value="history" className="text-xs">
+                <TrendingUp className="h-3 w-3 mr-1" />
+                Growth
+              </TabsTrigger>
+              <TabsTrigger value="distribution" className="text-xs">
+                <PieChartIcon className="h-3 w-3 mr-1" />
+                Distribution
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="history" className="space-y-4">
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={savingsData}
+                    margin={{ top: 10, right: 0, left: 0, bottom: 0 }}
                   >
-                    {savingsDistribution.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Legend 
-                    layout="vertical" 
-                    verticalAlign="middle" 
-                    align="right"
-                    iconType="circle"
-                    formatter={(value, entry, index) => {
-                      const item = savingsDistribution[index as number];
-                      return (
-                        <span className="text-xs">
-                          {value} ({formatCurrency(item.value)})
-                        </span>
-                      );
-                    }}
-                  />
-                  <Tooltip
-                    formatter={(value) => formatCurrency(Number(value))}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </TabsContent>
+                    <defs>
+                      <linearGradient id="colorAmount" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2563EB" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#2563EB" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" opacity={0.1} />
+                    <XAxis 
+                      dataKey="date" 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis 
+                      axisLine={false}
+                      tickLine={false}
+                      tick={{ fontSize: 12 }}
+                      tickFormatter={(value) => `$${value}`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Area 
+                      type="monotone" 
+                      dataKey="amount" 
+                      stroke="#2563EB" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorAmount)"
+                    />
+                    {savingsGoal && (
+                      <CartesianGrid y={savingsGoal} strokeWidth={1} strokeDasharray="3 3" stroke="#f59e0b" />
+                    )}
+                  </AreaChart>
+                </ResponsiveContainer>
+                {savingsGoal && (
+                  <div className="flex items-center justify-end mt-1">
+                    <div className="w-3 h-0 border-t-2 border-dashed border-amber-500" />
+                    <span className="text-xs ml-1 text-amber-600">Next Tier Goal: {formatCurrency(savingsGoal)}</span>
+                  </div>
+                )}
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="distribution" className="space-y-4">
+              <div className="h-64 flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={savingsDistribution}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={renderCustomizedLabel}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {savingsDistribution.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Legend 
+                      layout="vertical" 
+                      verticalAlign="middle" 
+                      align="right"
+                      iconType="circle"
+                      formatter={(value, entry, index) => {
+                        const item = savingsDistribution[index as number];
+                        return (
+                          <span className="text-xs">
+                            {value} ({formatCurrency(item.value)})
+                          </span>
+                        );
+                      }}
+                    />
+                    <Tooltip
+                      formatter={(value) => formatCurrency(Number(value))}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </motion.div>
