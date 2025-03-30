@@ -15,6 +15,7 @@ interface SummaryCardProps {
   linkHref?: string;
   linkText?: string;
   className?: string;
+  highlight?: boolean;
 }
 
 export function SummaryCard({
@@ -25,6 +26,7 @@ export function SummaryCard({
   linkHref,
   linkText,
   className,
+  highlight = false,
 }: SummaryCardProps) {
   // Card animation variants
   const cardVariants = {
@@ -76,19 +78,58 @@ export function SummaryCard({
     }
   };
 
+  // Pulsing animation for highlighted cards
+  const pulseAnimation = highlight ? {
+    animate: {
+      boxShadow: [
+        "0 0 0 0 rgba(239, 68, 68, 0)",
+        "0 0 0 4px rgba(239, 68, 68, 0.2)",
+        "0 0 0 0 rgba(239, 68, 68, 0)"
+      ],
+      transition: {
+        repeat: Infinity,
+        duration: 2
+      }
+    }
+  } : {};
+
   return (
     <motion.div 
-      className={cn("bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden", className)}
+      className={cn(
+        "bg-white rounded-xl shadow-sm border overflow-hidden", 
+        highlight ? "border-red-400" : "border-gray-100",
+        className
+      )}
       initial="hidden"
-      animate="visible"
+      animate={{
+        ...pulseAnimation.animate,
+        opacity: 1,
+        y: 0
+      }}
       whileHover="hover"
       variants={cardVariants}
     >
-      <div className="p-5">
+      <div className={cn(
+        "p-5",
+        highlight && "bg-gradient-to-r from-red-50 to-white"
+      )}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-semibold text-gray-500">{title}</h3>
+          <h3 className={cn(
+            "text-sm font-semibold",
+            highlight ? "text-red-600" : "text-gray-500"
+          )}>
+            {title}
+            {highlight && (
+              <span className="inline-block ml-2 px-1.5 py-0.5 bg-red-100 text-red-700 text-[10px] font-bold rounded-full animate-pulse">
+                ATTENTION
+              </span>
+            )}
+          </h3>
           <motion.div 
-            className="text-primary p-1.5 rounded-lg bg-primary-50"
+            className={cn(
+              "p-1.5 rounded-lg",
+              highlight ? "bg-red-100 text-red-600" : "bg-primary-50 text-primary"
+            )}
             variants={iconVariants}
           >
             {icon}
@@ -100,12 +141,17 @@ export function SummaryCard({
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.1, duration: 0.3 }}
         >
-          <span className="text-2xl font-bold text-gray-900 font-mono">{value}</span>
+          <span className={cn(
+            "text-2xl font-bold font-mono",
+            highlight ? "text-red-600" : "text-gray-900"
+          )}>
+            {value}
+          </span>
           {trend && (
             <motion.span 
               className={cn(
                 "ml-2 text-xs font-medium",
-                trend.positive ? "text-green-600" : "text-amber-600"
+                highlight ? "text-red-600" : (trend.positive ? "text-green-600" : "text-amber-600")
               )}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -119,7 +165,10 @@ export function SummaryCard({
           <div className="mt-4">
             <Link href={linkHref}>
               <motion.a 
-                className="text-sm text-primary hover:text-primary-700 font-medium flex items-center"
+                className={cn(
+                  "text-sm font-medium flex items-center",
+                  highlight ? "text-red-600 hover:text-red-700" : "text-primary hover:text-primary-700"
+                )}
                 initial="rest"
                 whileHover="hover"
               >
