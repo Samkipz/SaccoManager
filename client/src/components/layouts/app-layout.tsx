@@ -59,7 +59,7 @@ export function AppLayout({
   const [unreadMessages] = useState(5);
   const [unreadNotifications] = useState(3);
   const [isRoleSwitchDialogOpen, setIsRoleSwitchDialogOpen] = useState(false);
-  const [currentView, setCurrentView] = useState(isAdmin ? 'admin' : 'member');
+  const [currentView, setCurrentView] = useState('member');
 
   if (!isAuthenticated) {
     return <Redirect to="/login" />;

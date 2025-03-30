@@ -39,7 +39,7 @@ export function Sidebar({ className }: SidebarProps) {
   const [location] = useLocation();
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(!isMobile);
-  const [adminSectionExpanded, setAdminSectionExpanded] = useState(true);
+  const [adminSectionExpanded, setAdminSectionExpanded] = useState(false);
 
   const toggleSidebar = () => {
     setIsOpen(!isOpen);
@@ -57,6 +57,9 @@ export function Sidebar({ className }: SidebarProps) {
 
   // Get current section
   const isAdminPage = location.startsWith('/admin');
+  
+  // Show admin interface only when explicitly navigated to admin pages
+  const showAdminInterface = isAdmin && isAdminPage;
 
   // For the main dashboard items
   const mainNavItems = [

@@ -163,12 +163,15 @@ export function SummaryCard({
         </motion.div>
         {linkHref && linkText && (
           <div className="mt-4">
-            <Link href={linkHref}>
-              <motion.a 
-                className={cn(
-                  "text-sm font-medium flex items-center",
-                  highlight ? "text-red-600 hover:text-red-700" : "text-primary hover:text-primary-700"
-                )}
+            <Link 
+              href={linkHref}
+              className={cn(
+                "text-sm font-medium flex items-center",
+                highlight ? "text-red-600 hover:text-red-700" : "text-primary hover:text-primary-700"
+              )}
+            >
+              <motion.div
+                className="flex items-center"
                 initial="rest"
                 whileHover="hover"
               >
@@ -176,7 +179,7 @@ export function SummaryCard({
                 <motion.div variants={arrowVariants}>
                   <ArrowRight className="ml-1 h-4 w-4" />
                 </motion.div>
-              </motion.a>
+              </motion.div>
             </Link>
           </div>
         )}
