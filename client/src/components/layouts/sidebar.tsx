@@ -246,30 +246,27 @@ export function Sidebar({ className }: SidebarProps) {
                       key={item.href}
                       href={item.href}
                       onClick={closeSidebarOnMobile}
+                      className={cn(
+                        "flex items-center px-3 py-2 rounded-lg font-medium text-sm group transition-colors",
+                        location === item.href
+                          ? "bg-primary text-white"
+                          : "text-gray-700 hover:bg-gray-100"
+                      )}
                     >
-                      <a
-                        className={cn(
-                          "flex items-center px-3 py-2 rounded-lg font-medium text-sm group transition-colors",
-                          location === item.href
-                            ? "bg-primary text-white"
-                            : "text-gray-700 hover:bg-gray-100"
-                        )}
-                      >
-                        <div className={cn(
-                          "mr-3 rounded-md p-1.5",
-                          location === item.href 
-                            ? "bg-white/20 text-white" 
-                            : "bg-gray-100 text-gray-500 group-hover:text-primary"
-                        )}>
-                          {item.icon}
-                        </div>
-                        <span>{item.title}</span>
-                        {item.badge && (
-                          <Badge className="ml-auto" variant={location === item.href ? "outline" : "default"}>
-                            {item.badge}
-                          </Badge>
-                        )}
-                      </a>
+                      <div className={cn(
+                        "mr-3 rounded-md p-1.5",
+                        location === item.href 
+                          ? "bg-white/20 text-white" 
+                          : "bg-gray-100 text-gray-500 group-hover:text-primary"
+                      )}>
+                        {item.icon}
+                      </div>
+                      <span>{item.title}</span>
+                      {item.badge && (
+                        <Badge className="ml-auto" variant={location === item.href ? "outline" : "default"}>
+                          {item.badge}
+                        </Badge>
+                      )}
                     </Link>
                   ))}
                 </>
@@ -305,36 +302,33 @@ export function Sidebar({ className }: SidebarProps) {
                             key={item.href}
                             href={item.href}
                             onClick={closeSidebarOnMobile}
+                            className={cn(
+                              "flex items-center px-3 py-2 rounded-lg font-medium text-sm group transition-colors",
+                              location === item.href
+                                ? "bg-amber-500 text-white"
+                                : "text-gray-700 hover:bg-gray-100"
+                            )}
                           >
-                            <a
-                              className={cn(
-                                "flex items-center px-3 py-2 rounded-lg font-medium text-sm group transition-colors",
-                                location === item.href
-                                  ? "bg-amber-500 text-white"
-                                  : "text-gray-700 hover:bg-gray-100"
-                              )}
-                            >
-                              <div className={cn(
-                                "mr-3 rounded-md p-1.5",
-                                location === item.href 
-                                  ? "bg-white/20 text-white" 
-                                  : "bg-gray-100 text-gray-500 group-hover:text-amber-500"
-                              )}>
-                                {item.icon}
-                              </div>
-                              <span>{item.title}</span>
-                              {item.badge && (
-                                <Badge 
-                                  className="ml-auto" 
-                                  variant={location === item.href ? "outline" : "secondary"}
-                                  style={{
-                                    ...(location === item.href ? { borderColor: 'rgba(255,255,255,0.5)' } : {})
-                                  }}
-                                >
-                                  {item.badge}
-                                </Badge>
-                              )}
-                            </a>
+                            <div className={cn(
+                              "mr-3 rounded-md p-1.5",
+                              location === item.href 
+                                ? "bg-white/20 text-white" 
+                                : "bg-gray-100 text-gray-500 group-hover:text-amber-500"
+                            )}>
+                              {item.icon}
+                            </div>
+                            <span>{item.title}</span>
+                            {item.badge && (
+                              <Badge 
+                                className="ml-auto" 
+                                variant={location === item.href ? "outline" : "secondary"}
+                                style={{
+                                  ...(location === item.href ? { borderColor: 'rgba(255,255,255,0.5)' } : {})
+                                }}
+                              >
+                                {item.badge}
+                              </Badge>
+                            )}
                           </Link>
                         ))}
                       </motion.div>
